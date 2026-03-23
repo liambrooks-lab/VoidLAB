@@ -1,0 +1,20 @@
+
+> web@0.1.0 dev
+> node ../../node_modules/next/dist/bin/next dev
+
+   ▲ Next.js 14.1.4
+   - Local:        http://localhost:3000
+   - Environments: .env.local
+
+npm error code ENOWORKSPACES
+npm error This command does not support workspaces.
+npm error A complete log of this run can be found in: C:\Users\hp\AppData\Local\npm-cache\_logs\2026-03-23T15_11_31_087Z-debug-0.log
+ ✓ Ready in 24s
+ ○ Compiling / ...
+ ✓ Compiled / in 10.3s (539 modules)
+ ○ Compiling /editor ...
+ ✓ Compiled /editor in 1656ms (625 modules)
+ ○ Compiling /icon.svg ...
+ ✓ Compiled /icon.svg in 642ms (301 modules)
+ ✓ Compiled /editor in 312ms (354 modules)
+^C

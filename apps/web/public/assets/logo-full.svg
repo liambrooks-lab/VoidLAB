@@ -1,0 +1,14 @@
+<svg width="420" height="120" viewBox="0 0 420 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="420" height="120" rx="28" fill="#07111F"/>
+  <rect x="12" y="12" width="396" height="96" rx="22" fill="url(#bg)"/>
+  <rect x="30" y="30" width="60" height="60" rx="18" fill="#14B8A6"/>
+  <path d="M47 61L58 72L75 47" stroke="#04111D" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="114" y="58" fill="#E2E8F0" font-family="Arial, sans-serif" font-size="34" font-weight="700">VoidLAB</text>
+  <text x="114" y="84" fill="#94A3B8" font-family="Arial, sans-serif" font-size="15" font-weight="500">Cloud editor and compiler</text>
+  <defs>
+    <linearGradient id="bg" x1="18" y1="18" x2="402" y2="102" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0F172A"/>
+      <stop offset="1" stop-color="#08101E"/>
+    </linearGradient>
+  </defs>
+</svg>

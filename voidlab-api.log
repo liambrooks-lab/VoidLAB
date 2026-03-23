@@ -1,0 +1,23 @@
+
+> api@1.0.0 dev
+> node ../../node_modules/ts-node-dev/lib/bin.js --respawn src/index.ts
+
+[INFO] 20:41:12 ts-node-dev ver. 2.0.0 (using ts-node ver. 10.9.2, typescript ver. 5.9.3)
+C:\Users\hp\AppData\Local\Temp\ts-node-dev-hook-505019836803808.js:3
+var getCompiledPath = require('F:/console.warn( 'Projects ⚠' );/VoidLAB/node_modules/ts-node-dev/lib/get-compiled-path').getCompiledPath;
+                              ^^^^^^^^^^^^^^^^^^^
+
+SyntaxError: missing ) after argument list
+    at wrapSafe (node:internal/modules/cjs/loader:1743:18)
+    at Module._compile (node:internal/modules/cjs/loader:1786:20)
+    at Object..js (node:internal/modules/cjs/loader:1943:10)
+    at Module.load (node:internal/modules/cjs/loader:1533:32)
+    at Module._load (node:internal/modules/cjs/loader:1335:12)
+    at wrapModuleLoad (node:internal/modules/cjs/loader:255:19)
+    at Module.require (node:internal/modules/cjs/loader:1556:12)
+    at node:internal/modules/cjs/loader:2104:12
+    at loadPreloadModules (node:internal/process/pre_execution:698:5)
+    at initializeModuleLoaders (node:internal/process/pre_execution:238:5)
+
+Node.js v24.14.0
+^C^C
