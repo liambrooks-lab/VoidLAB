@@ -7,9 +7,9 @@
 
 <p align="center">
   <a href="https://void-lab-web.vercel.app/">Live Product</a>
-  ·
+  •
   <a href="https://voidlab.onrender.com">Backend API</a>
-  ·
+  •
   <a href="https://github.com/liambrooks-lab/VoidLAB">Repository</a>
 </p>
 
@@ -17,51 +17,51 @@
 
 ## Overview
 
-VoidLAB is a full-stack cloud IDE experience designed to feel like a polished product rather than a rough demo. It combines a premium onboarding flow, personalized workspace, Monaco-powered editor, multi-file editing, keyboard shortcuts, and online code execution through a remote compiler runtime.
+VoidLAB is a full-stack cloud IDE experience designed to feel like a polished product rather than a rough demo. It combines a premium onboarding flow, personalized workspace, Monaco-powered editor, multi-file editing, keyboard shortcuts, and online code execution through a hosted runtime provider.
 
 The project is structured as a monorepo and split into:
 
 - a **Next.js frontend** for the product interface
-- an **Express API** for code execution requests
+- an **Express API** for execution requests
 - shared config packages for cleaner project organization
 
 ---
 
-## Live Links
+## Links
 
-- **Frontend**: [https://void-lab-web.vercel.app/](https://void-lab-web.vercel.app/)
+- **Live Product**: [https://void-lab-web.vercel.app/](https://void-lab-web.vercel.app/) 🚀
 - **Backend API**: [https://voidlab.onrender.com](https://voidlab.onrender.com)
 - **GitHub Repository**: [https://github.com/liambrooks-lab/VoidLAB](https://github.com/liambrooks-lab/VoidLAB)
 
-> The Vercel link is the main public product link to share with users, teammates, recruiters, or clients.
+> The Vercel link is the main public product URL you can share with users, teammates, recruiters, or clients.
 
 ---
 
-## Product Highlights
+## Highlights
 
-### Premium Product Experience
-- Enterprise-style landing and onboarding flow
-- Profile-based workspace greeting
-- Smooth, responsive interface across desktop and mobile
-- Theme switching support
-- Product-grade layout and visual hierarchy
+### Premium Product Experience ✨
+- polished landing and onboarding flow
+- profile-based workspace greeting
+- responsive interface across desktop and mobile
+- theme switching support
+- product-grade layout and visual hierarchy
 
-### Editor Experience
+### Editor Experience 🧠
 - Monaco-powered code editor
-- Multi-file project workspace
-- File explorer and editor tabs
-- Export current file
-- Persistent local workspace state
-- Responsive editor shell
+- multi-file project workspace
+- file explorer and editor tabs
+- export current file
+- persistent local workspace state
+- built-in user manual inside the editor
 
-### Productivity Features
+### Productivity Features ⌨️
 - `Ctrl/Cmd + Enter` to run code
 - `Ctrl/Cmd + S` to save workspace locally
 - `Ctrl/Cmd + Shift + N` to create a new file
 - `Esc` to close mobile panels
 
 ### Language Support
-VoidLAB supports **many languages and formats** for editing, and a broad set of **runnable languages** through the execution provider.
+VoidLAB supports **many languages and formats** for editing, and a broad set of **runnable languages** through the execution engine.
 
 Runnable language examples:
 - JavaScript
@@ -77,8 +77,8 @@ Runnable language examples:
 - Swift
 - Kotlin
 - Bash
-- PowerShell
 - Lua
+- C#
 
 Editor-oriented formats include:
 - HTML
@@ -88,14 +88,15 @@ Editor-oriented formats include:
 - YAML
 - SQL
 - XML
+- PowerShell
 
-> Runtime execution support depends on the external compiler provider and may vary by provider availability.
+> Runtime availability depends on the hosted execution provider. Some languages may remain editor-only when public cloud execution is not exposed.
 
 ---
 
 ## Tech Stack
 
-### Frontend
+### Frontend ⚛️
 - Next.js
 - React
 - TypeScript
@@ -103,18 +104,18 @@ Editor-oriented formats include:
 - Monaco Editor
 - Lucide Icons
 
-### Backend
+### Backend ⚙️
 - Node.js
 - Express
 - TypeScript
 - Axios
 
-### Platform / Deployment
+### Platform and Deployment ☁️
 - Vercel for frontend hosting
 - Render for backend hosting
-- Piston API for code execution
+- Judge0 CE for cloud code execution
 
-### Monorepo Tooling
+### Monorepo Tooling 🧩
 - npm workspaces
 - Turborepo
 - shared TypeScript configs
@@ -152,6 +153,7 @@ VoidLAB/
 |- package.json
 |- package-lock.json
 |- turbo.json
+|- LICENSE
 `- README.md
 ```
 
@@ -165,12 +167,12 @@ The frontend is responsible for:
 - file management
 - editor interactions
 - terminal and output presentation
-- API communication with the backend compiler service
+- API communication with the backend execution service
 
 ### Backend
 The backend is responsible for:
 - exposing a clean execution endpoint
-- forwarding code execution requests to the runtime provider
+- forwarding execution requests to the runtime provider
 - returning compiler and runtime output to the frontend
 - applying basic rate limiting and request control
 
@@ -179,19 +181,19 @@ The backend is responsible for:
 2. User enters profile details
 3. User enters the editor workspace
 4. Code is written or updated in the Monaco editor
-5. Frontend sends execution request to backend
-6. Backend forwards request to the runtime provider
+5. Frontend sends the execution request to backend
+6. Backend forwards the request to Judge0 CE
 7. Output is returned and shown in the terminal panel
 
 ---
 
-## Getting Started Locally
+## Local Setup
 
 ### Prerequisites
 - Node.js 18+
 - npm 10+
 
-### Installation
+### Install
 
 ```bash
 npm install
@@ -230,7 +232,7 @@ Create `apps/api/.env`:
 
 ```env
 PORT=5000
-PISTON_API_URL=https://emkc.org/api/v2/piston
+JUDGE0_API_URL=https://ce.judge0.com
 ```
 
 ---
@@ -251,13 +253,13 @@ npm run build -w web
 
 ## Deployment
 
-### Frontend Deployment
-- Hosted on **Vercel**
-- Root directory: `apps/web`
+### Frontend Deployment 🌐
+- hosted on **Vercel**
+- root directory: `apps/web`
 
-### Backend Deployment
-- Hosted on **Render**
-- Uses the Express API from `apps/api`
+### Backend Deployment 🛠️
+- hosted on **Render**
+- uses the Express API from `apps/api`
 
 ### Required Frontend Production Variable
 ```env
@@ -266,12 +268,12 @@ NEXT_PUBLIC_API_URL=https://voidlab.onrender.com
 
 ---
 
-## Key Product Capabilities
+## Key Capabilities
 
 - polished onboarding and workspace personalization
 - shareable public product URL
 - cloud editor workflow
-- execution pipeline through backend API
+- hosted code execution pipeline
 - responsive design
 - project tabs and file explorer
 - professional UI suitable for demos and portfolio use
