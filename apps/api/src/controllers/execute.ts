@@ -1,24 +1,33 @@
 import axios from "axios";
 import { Request, Response } from "express";
 
-const pistonApiUrl =
-  process.env.PISTON_API_URL ?? "https://emkc.org/api/v2/piston";
+const judge0ApiUrl =
+  process.env.JUDGE0_API_URL ?? "https://ce.judge0.com";
 
 export const executeCode = async (req: Request, res: Response) => {
-  const { code, language, version } = req.body ?? {};
+  const { code, languageId } = req.body ?? {};
 
-  if (!code || !language) {
+  if (!code || !languageId) {
     return res.status(400).json({
-      error: "Language and code are required.",
+      error: "Language id and code are required.",
     });
   }
 
   try {
-    const response = await axios.post(`${pistonApiUrl}/execute`, {
-      language,
-      version: version || "*",
-      files: [{ content: code }],
-    });
+    const response = await axios.post(
+      `${judge0ApiUrl}/submissions/?base64_encoded=false&wait=true`,
+      {
+        language_id: languageId,
+        source_code: code,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent": "VoidLAB/1.0",
+        },
+        timeout: 20000,
+      },
+    );
 
     return res.status(200).json(response.data);
   } catch (error) {

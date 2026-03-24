@@ -19,8 +19,7 @@ export const useCompiler = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           code,
-          language: language.runtime,
-          version: language.version,
+          languageId: language.judge0Id,
         }),
       });
 
@@ -32,9 +31,10 @@ export const useCompiler = () => {
       }
 
       const terminalOutput =
-        data.run?.output ||
-        data.run?.stderr ||
-        data.compile?.output ||
+        data.stdout ||
+        data.stderr ||
+        data.compile_output ||
+        data.message ||
         "Code executed with no output.";
 
       setOutput(terminalOutput);

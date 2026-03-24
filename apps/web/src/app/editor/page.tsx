@@ -6,6 +6,7 @@ import { Download, Loader2, Menu, Play, Save, Sparkles } from "lucide-react";
 import EditorTabs from "@/components/editor/EditorTabs";
 import FileExplorer from "@/components/editor/FileExplorer";
 import GitHubPanel from "@/components/editor/GitHubPanel";
+import ManualPanel from "@/components/editor/ManualPanel";
 import MonacoEditor from "@/components/editor/MonacoEditor";
 import Brand from "@/components/layout/Brand";
 import Sidebar from "@/components/editor/Sidebar";
@@ -438,6 +439,7 @@ export default function EditorPage() {
               </div>
 
               <div className="flex flex-col gap-4">
+                <ManualPanel />
                 <GitHubPanel
                   commands={gitCommands}
                   copied={copied}
