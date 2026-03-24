@@ -1,14 +1,15 @@
 {
   "name": "voidlab-monorepo",
   "private": true,
+  "packageManager": "npm@10.9.0",
   "workspaces": [
     "apps/*",
     "packages/*"
   ],
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "lint": "turbo run lint",
+    "dev": "node ./node_modules/turbo/bin/turbo run dev",
+    "build": "node ./node_modules/turbo/bin/turbo run build",
+    "lint": "node ./node_modules/turbo/bin/turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md,js}\""
   },
   "devDependencies": {

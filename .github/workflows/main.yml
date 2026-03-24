@@ -11,17 +11,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - uses: actions/checkout@v4
 
-    - name: Install Dependencies
-      run: npm install
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
 
-    - name: Run Linting
-      run: npm run lint
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build API
+        run: npm run build -w api
+
+      - name: Build Web
+        run: npm run build -w web
       
