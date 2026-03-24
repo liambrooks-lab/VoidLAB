@@ -29,7 +29,7 @@ The project is structured as a monorepo and split into:
 
 ## Links
 
-- **Live Product**: [https://void-lab-web.vercel.app/](https://void-lab-web.vercel.app/) 🚀
+- **Live Product**: [https://void-lab-web.vercel.app/](https://void-lab-web.vercel.app/) 
 - **Backend API**: [https://voidlab.onrender.com](https://voidlab.onrender.com)
 - **GitHub Repository**: [https://github.com/liambrooks-lab/VoidLAB](https://github.com/liambrooks-lab/VoidLAB)
 
@@ -303,7 +303,7 @@ Possible next upgrades:
 
 ---
 
-## Author
+## 📑Author
 
 **Rudranarayan Jena**  
 GitHub: [@liambrooks-lab](https://github.com/liambrooks-lab)
