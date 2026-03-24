@@ -7,6 +7,7 @@ import EditorTabs from "@/components/editor/EditorTabs";
 import FileExplorer from "@/components/editor/FileExplorer";
 import GitHubPanel from "@/components/editor/GitHubPanel";
 import MonacoEditor from "@/components/editor/MonacoEditor";
+import Brand from "@/components/layout/Brand";
 import Sidebar from "@/components/editor/Sidebar";
 import TerminalBox from "@/components/editor/TerminalBox";
 import ThemeSwitcher from "@/components/layout/ThemeSwitcher";
@@ -335,10 +336,8 @@ export default function EditorPage() {
               >
                 <Menu size={18} />
               </button>
-              <div>
-                <div className="display-font text-2xl font-semibold tracking-[-0.05em] text-white">
-                  VoidLAB
-                </div>
+              <div className="space-y-1">
+                <Brand compact />
                 <div className="text-sm text-slate-400">
                   Hi {firstName}, your cloud workspace is ready.
                 </div>
