@@ -37,7 +37,7 @@ export default function GitHubPanel({
         <label className="block">
           <span className="mb-2 block text-sm text-slate-300">Repository URL</span>
           <input
-            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400"
+            className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-300"
             onChange={(event) => onFieldChange("repoUrl", event.target.value)}
             placeholder="https://github.com/username/voidlab.git"
             value={gitState.repoUrl}
@@ -50,7 +50,7 @@ export default function GitHubPanel({
             <div className="relative">
               <GitBranch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <input
-                className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-teal-400"
+                className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-300"
                 onChange={(event) => onFieldChange("branch", event.target.value)}
                 placeholder="main"
                 value={gitState.branch}
@@ -63,7 +63,7 @@ export default function GitHubPanel({
             <div className="relative">
               <Lock className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
               <select
-                className="w-full rounded-2xl border border-white/10 bg-slate-900 py-3 pl-11 pr-4 text-sm text-white outline-none focus:border-teal-400"
+                className="w-full rounded-2xl border border-white/10 bg-slate-900 py-3 pl-11 pr-4 text-sm text-white outline-none focus:border-sky-300"
                 onChange={(event) => onFieldChange("visibility", event.target.value)}
                 value={gitState.visibility}
               >

@@ -4,6 +4,7 @@ import { Palette } from "lucide-react";
 import { ThemeName, useTheme } from "@/context/ThemeContext";
 
 const labels: Record<ThemeName, string> = {
+  cerulean: "Cerulean",
   midnight: "Midnight",
   graphite: "Graphite",
   ember: "Ember",
@@ -14,7 +15,7 @@ export default function ThemeSwitcher() {
 
   return (
     <label className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-200">
-      <Palette size={15} className="text-amber-300" />
+      <Palette size={15} className="text-sky-200" />
       <select
         className="bg-transparent outline-none"
         onChange={(event) => setTheme(event.target.value as ThemeName)}

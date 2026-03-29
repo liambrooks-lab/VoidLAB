@@ -47,7 +47,7 @@ export default function FileExplorer({
             value={draftName}
           />
           <select
-            className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-2.5 text-sm text-slate-100 outline-none focus:border-teal-400"
+            className="w-full rounded-2xl border border-white/10 bg-slate-900 px-4 py-2.5 text-sm text-slate-100 outline-none focus:border-sky-300"
             onChange={(event) => onDraftLanguageChange(event.target.value)}
             value={draftLanguage}
           >
@@ -62,7 +62,7 @@ export default function FileExplorer({
             ))}
           </select>
           <button
-            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-teal-400 px-4 py-2.5 text-sm font-medium text-slate-950 transition hover:bg-teal-300"
+            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-400 px-4 py-2.5 text-sm font-medium text-slate-950 transition hover:bg-sky-300"
             onClick={onCreateFile}
             type="button"
           >
@@ -80,7 +80,7 @@ export default function FileExplorer({
               <div
                 className={`flex items-center justify-between rounded-2xl border px-3 py-3 transition ${
                   isActive
-                    ? "border-teal-400/35 bg-teal-400/10"
+                    ? "border-sky-300/35 bg-sky-300/10"
                     : "border-white/10 bg-white/5 hover:bg-white/10"
                 }`}
                 key={file.id}

@@ -1,14 +1,13 @@
 import { useState } from "react";
+import { apiBaseUrl } from "@/lib/api";
 import { LanguageOption } from "@/lib/languages";
-
-const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
 
 export const useCompiler = () => {
   const [output, setOutput] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const runCode = async (language: LanguageOption, code: string) => {
+  const runCode = async (language: LanguageOption, code: string, stdin = "") => {
     setLoading(true);
     setError("");
     setOutput("");
@@ -20,6 +19,7 @@ export const useCompiler = () => {
         body: JSON.stringify({
           code,
           languageId: language.judge0Id,
+          stdin,
         }),
       });
 

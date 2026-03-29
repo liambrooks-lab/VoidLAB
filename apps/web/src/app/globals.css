@@ -3,6 +3,24 @@
 @tailwind utilities;
 
 :root,
+:root[data-theme="cerulean"] {
+  --font-body: "Aptos", "Segoe UI", sans-serif;
+  --font-display: "Bahnschrift", "Aptos", "Segoe UI", sans-serif;
+  --text: #eff6ff;
+  --muted: #bdd4ee;
+  --border: rgba(125, 211, 252, 0.18);
+  --shadow: 0 18px 80px rgba(9, 25, 74, 0.36);
+  --background-main:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.22), transparent 24%),
+    radial-gradient(circle at 92% 14%, rgba(255, 255, 255, 0.14), transparent 18%),
+    linear-gradient(180deg, #07142f 0%, #0a1d46 42%, #08152d 100%);
+  --glass-background: linear-gradient(180deg, rgba(14, 31, 78, 0.82), rgba(9, 22, 54, 0.9));
+  --panel-background: rgba(10, 28, 72, 0.84);
+  --shell-background:
+    linear-gradient(180deg, rgba(8, 20, 50, 0.98), rgba(7, 16, 39, 0.98)),
+    radial-gradient(circle at top, rgba(56, 189, 248, 0.12), transparent 34%);
+}
+
 :root[data-theme="midnight"] {
   --text: #e2e8f0;
   --muted: #94a3b8;
@@ -79,6 +97,38 @@ body {
   background: var(--panel-background);
   border: 1px solid var(--border);
   box-shadow: var(--shadow);
+}
+
+.theme-text {
+  color: var(--text);
+}
+
+.theme-muted {
+  color: var(--muted);
+}
+
+.theme-surface {
+  background: color-mix(in srgb, var(--panel-background) 88%, white 12%);
+}
+
+.theme-input {
+  background: color-mix(in srgb, var(--panel-background) 76%, white 24%);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.theme-input::placeholder {
+  color: color-mix(in srgb, var(--muted) 78%, transparent);
+}
+
+.theme-chip {
+  background: color-mix(in srgb, var(--panel-background) 82%, white 18%);
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.theme-link {
+  color: #2563eb;
 }
 
 .hero-grid {

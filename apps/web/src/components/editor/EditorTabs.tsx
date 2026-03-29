@@ -28,7 +28,7 @@ export default function EditorTabs({
           <button
             className={`group flex items-center gap-2 rounded-2xl border px-3 py-2 text-sm transition ${
               isActive
-                ? "border-teal-400/40 bg-teal-400/10 text-white"
+                ? "border-sky-300/40 bg-sky-300/10 text-white"
                 : "border-white/10 bg-white/5 text-slate-300 hover:bg-white/10"
             }`}
             key={file.id}

@@ -18,7 +18,7 @@ export function Input({ className, icon, label, ...props }: InputProps) {
         ) : null}
         <input
           className={cn(
-            "w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-teal-400",
+            "w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-300",
             icon ? "pl-11" : "",
             className,
           )}

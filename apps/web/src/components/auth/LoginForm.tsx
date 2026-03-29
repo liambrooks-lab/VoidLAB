@@ -6,6 +6,7 @@ import { ArrowRight, Camera, Globe2, Mail, Phone, User2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/context/UserContext";
+import { apiBaseUrl } from "@/lib/api";
 
 const emptyForm = {
   name: "",
@@ -34,7 +35,9 @@ export default function LoginForm() {
 
   const handleAvatar = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
+
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = () => {
       setForm((current) => ({ ...current, avatar: String(reader.result ?? "") }));
@@ -42,7 +45,7 @@ export default function LoginForm() {
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError("");
 
@@ -52,14 +55,40 @@ export default function LoginForm() {
     }
 
     setSubmitting(true);
-    saveProfile({
-      name: form.name.trim(),
+
+    const nextProfile = {
+      avatar: form.avatar,
       email: form.email.trim(),
+      name: form.name.trim(),
       phone: form.phone.trim(),
       region: form.region.trim(),
-      avatar: form.avatar,
-    });
-    router.push("/editor");
+    };
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/auth/session`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(nextProfile),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "VoidLAB could not create your session.");
+      }
+
+      saveProfile(nextProfile);
+      router.push("/editor");
+    } catch (submissionError) {
+      setError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : "VoidLAB could not create your session.",
+      );
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -74,21 +103,21 @@ export default function LoginForm() {
             VoidLAB environment on any device.
           </p>
         </div>
-        <div className="rounded-2xl border border-teal-400/20 bg-teal-400/10 px-3 py-2 text-right">
-          <div className="text-xs uppercase tracking-[0.24em] text-teal-200">Profile</div>
+        <div className="rounded-2xl border border-sky-300/20 bg-sky-300/10 px-3 py-2 text-right">
+          <div className="text-xs uppercase tracking-[0.24em] text-sky-100">Profile</div>
           <div className="display-font text-xl font-semibold text-white">{completion}%</div>
         </div>
       </div>
 
-      <form className="space-y-5" onSubmit={handleSubmit}>
+      <form className="space-y-5" onSubmit={(event) => void handleSubmit(event)}>
         <div className="flex flex-col items-center gap-3 sm:flex-row">
-          <label className="group relative flex h-28 w-28 cursor-pointer items-center justify-center overflow-hidden rounded-[28px] border border-dashed border-white/15 bg-white/5 transition hover:border-teal-400/50 hover:bg-white/10">
+          <label className="group relative flex h-28 w-28 cursor-pointer items-center justify-center overflow-hidden rounded-[28px] border border-dashed border-white/15 bg-white/5 transition hover:border-sky-300/50 hover:bg-white/10">
             {form.avatar ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img alt="Profile preview" className="h-full w-full object-cover" src={form.avatar} />
             ) : (
               <div className="text-center">
-                <Camera className="mx-auto text-slate-400 transition group-hover:text-teal-300" size={22} />
+                <Camera className="mx-auto text-slate-400 transition group-hover:text-sky-200" size={22} />
                 <div className="mt-2 text-xs uppercase tracking-[0.22em] text-slate-400">
                   Add photo
                 </div>
@@ -105,17 +134,42 @@ export default function LoginForm() {
           <div className="flex-1 rounded-[28px] border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
             <div className="font-medium text-white">VoidLAB identity card</div>
             <p className="mt-2 leading-6 text-slate-400">
-              Your profile powers the personalized greeting, session identity, and
-              premium workspace feel.
+              Your profile powers the personalized greeting, auto-mail workflow,
+              session identity, and premium workspace feel.
             </p>
           </div>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Input icon={<User2 size={16} />} label="Full name" onChange={handleField("name")} placeholder="Aman Kumar" value={form.name} />
-          <Input icon={<Mail size={16} />} label="Email" onChange={handleField("email")} placeholder="you@example.com" type="email" value={form.email} />
-          <Input icon={<Phone size={16} />} label="Phone number" onChange={handleField("phone")} placeholder="+91 98765 43210" value={form.phone} />
-          <Input icon={<Globe2 size={16} />} label="Region" onChange={handleField("region")} placeholder="Kolkata, India" value={form.region} />
+          <Input
+            icon={<User2 size={16} />}
+            label="Full name"
+            onChange={handleField("name")}
+            placeholder="Aman Kumar"
+            value={form.name}
+          />
+          <Input
+            icon={<Mail size={16} />}
+            label="Email"
+            onChange={handleField("email")}
+            placeholder="you@example.com"
+            type="email"
+            value={form.email}
+          />
+          <Input
+            icon={<Phone size={16} />}
+            label="Phone number"
+            onChange={handleField("phone")}
+            placeholder="+91 98765 43210"
+            value={form.phone}
+          />
+          <Input
+            icon={<Globe2 size={16} />}
+            label="Region"
+            onChange={handleField("region")}
+            placeholder="Kolkata, India"
+            value={form.region}
+          />
         </div>
 
         {error ? (
@@ -126,7 +180,7 @@ export default function LoginForm() {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-            Mobile ready • local drafts • fast compile loop
+            Mobile ready • auto-mail • local drafts • fast compile loop
           </div>
           <Button className="min-w-[200px]" disabled={submitting} type="submit">
             {submitting ? "Launching" : "Launch VoidLAB"}

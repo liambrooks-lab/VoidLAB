@@ -7,6 +7,7 @@ export type LanguageOption = {
   executionLabel?: string;
   judge0Id?: number;
   monacoLanguage: string;
+  previewable?: boolean;
   runnable: boolean;
   runtimeLabel?: string;
   template: string;
@@ -234,6 +235,7 @@ const editorOnlyLanguages: LanguageOption[] = [
     description: "Markup for page structure.",
     extension: "html",
     monacoLanguage: "html",
+    previewable: true,
     runnable: false,
     template: "<section>\n  <h1>Welcome to VoidLAB</h1>\n</section>\n",
   },
@@ -244,6 +246,7 @@ const editorOnlyLanguages: LanguageOption[] = [
     description: "Styling language for web interfaces.",
     extension: "css",
     monacoLanguage: "css",
+    previewable: true,
     runnable: false,
     template: "body {\n  background: #030712;\n  color: white;\n}\n",
   },
@@ -254,6 +257,7 @@ const editorOnlyLanguages: LanguageOption[] = [
     description: "Structured data format.",
     extension: "json",
     monacoLanguage: "json",
+    previewable: true,
     runnable: false,
     template: '{\n  "product": "VoidLAB",\n  "status": "ready"\n}\n',
   },
@@ -264,6 +268,7 @@ const editorOnlyLanguages: LanguageOption[] = [
     description: "Documentation-friendly lightweight markup.",
     extension: "md",
     monacoLanguage: "markdown",
+    previewable: true,
     runnable: false,
     template: "# VoidLAB\n\nBuild, run, and ship from the cloud.\n",
   },
@@ -294,6 +299,7 @@ const editorOnlyLanguages: LanguageOption[] = [
     description: "Structured markup for document-style data.",
     extension: "xml",
     monacoLanguage: "xml",
+    previewable: true,
     runnable: false,
     template: "<message>Welcome to VoidLAB</message>\n",
   },

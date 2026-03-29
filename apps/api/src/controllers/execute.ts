@@ -5,7 +5,7 @@ const judge0ApiUrl =
   process.env.JUDGE0_API_URL ?? "https://ce.judge0.com";
 
 export const executeCode = async (req: Request, res: Response) => {
-  const { code, languageId } = req.body ?? {};
+  const { code, languageId, stdin } = req.body ?? {};
 
   if (!code || !languageId) {
     return res.status(400).json({
@@ -17,8 +17,12 @@ export const executeCode = async (req: Request, res: Response) => {
     const response = await axios.post(
       `${judge0ApiUrl}/submissions/?base64_encoded=false&wait=true`,
       {
+        cpu_time_limit: 5,
         language_id: languageId,
+        memory_limit: 262144,
         source_code: code,
+        stdin: typeof stdin === "string" ? stdin : "",
+        wall_time_limit: 12,
       },
       {
         headers: {

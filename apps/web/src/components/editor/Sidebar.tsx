@@ -31,7 +31,7 @@ export default function Sidebar({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img alt={profile.name} className="h-full w-full rounded-2xl object-cover" src={profile.avatar} />
               ) : (
-                <UserCircle2 className="text-teal-300" size={22} />
+                <UserCircle2 className="text-sky-300" size={22} />
               )}
             </div>
             <div>
