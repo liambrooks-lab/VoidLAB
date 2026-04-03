@@ -4,9 +4,9 @@ import { Palette } from "lucide-react";
 import { ThemeName, useTheme } from "@/context/ThemeContext";
 
 const labels: Record<ThemeName, string> = {
+  porcelain: "Porcelain",
   cerulean: "Cerulean",
   midnight: "Midnight",
-  graphite: "Graphite",
   ember: "Ember",
 };
 
@@ -22,7 +22,7 @@ export default function ThemeSwitcher() {
         value={theme}
       >
         {Object.entries(labels).map(([value, label]) => (
-          <option key={value} value={value} className="bg-slate-950 text-white">
+          <option key={value} value={value} className="bg-white text-slate-900">
             {label}
           </option>
         ))}

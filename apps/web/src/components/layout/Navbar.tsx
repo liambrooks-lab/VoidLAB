@@ -4,7 +4,7 @@ import ThemeSwitcher from "@/components/layout/ThemeSwitcher";
 
 export default function Navbar() {
   return (
-    <header className="flex items-center justify-between gap-4 rounded-[28px] border border-white/10 bg-slate-950/50 px-5 py-4 backdrop-blur-xl">
+    <header className="glass flex items-center justify-between gap-4 rounded-[28px] px-5 py-4">
       <Brand />
       <div className="flex items-center gap-3">
         <ThemeSwitcher />

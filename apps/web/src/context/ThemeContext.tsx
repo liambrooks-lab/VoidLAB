@@ -2,10 +2,10 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
-export type ThemeName = "cerulean" | "midnight" | "graphite" | "ember";
+export type ThemeName = "porcelain" | "cerulean" | "midnight" | "ember";
 
 type ThemeContextValue = {
-  editorTheme: "vs-dark";
+  editorTheme: "light" | "vs-dark";
   setTheme: (theme: ThemeName) => void;
   theme: ThemeName;
 };
@@ -14,11 +14,11 @@ const storageKey = "voidlab-theme";
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeName>("cerulean");
+  const [theme, setThemeState] = useState<ThemeName>("porcelain");
 
   useEffect(() => {
     const stored = window.localStorage.getItem(storageKey) as ThemeName | null;
-    const nextTheme = stored ?? "cerulean";
+    const nextTheme = stored ?? "porcelain";
     document.documentElement.dataset.theme = nextTheme;
     setThemeState(nextTheme);
   }, []);
@@ -31,7 +31,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(
     () => ({
-      editorTheme: "vs-dark" as const,
+      editorTheme: theme === "porcelain" ? ("light" as const) : ("vs-dark" as const),
       setTheme,
       theme,
     }),
