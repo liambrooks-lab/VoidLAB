@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { BookOpenText, Bot, Github, Users2 } from "lucide-react";
+import { BookOpenText, Bot, Github, UserRound, Users2 } from "lucide-react";
 
 const tools = [
   {
@@ -28,6 +28,12 @@ const tools = [
     icon: Bot,
     label: "AI Guide",
   },
+  {
+    description: "Review the user profile, social links, and recent activities.",
+    href: "/editor/profile",
+    icon: UserRound,
+    label: "Profile",
+  },
 ];
 
 export default function ToolLauncherBar() {
@@ -42,7 +48,7 @@ export default function ToolLauncherBar() {
         </div>
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         {tools.map((tool) => {
           const Icon = tool.icon;
 

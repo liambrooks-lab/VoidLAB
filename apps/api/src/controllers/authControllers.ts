@@ -68,7 +68,7 @@ const sendWelcomeEmail = async ({
 };
 
 export const createSession = async (req: Request, res: Response) => {
-  const { email, name, phone, region } = req.body ?? {};
+  const { bio, email, name, phone, region, socials } = req.body ?? {};
 
   if (!email || !name || !phone || !region) {
     return res.status(400).json({
@@ -97,6 +97,21 @@ export const createSession = async (req: Request, res: Response) => {
   return res.status(200).json({
     ok: true,
     mail: emailStatus,
-    profile: { email, name, phone, region },
+    profile: {
+      bio: typeof bio === "string" ? bio : "",
+      email,
+      name,
+      phone,
+      region,
+      socials:
+        socials && typeof socials === "object"
+          ? socials
+          : {
+              github: "",
+              instagram: "",
+              linkedin: "",
+              x: "",
+            },
+    },
   });
 };

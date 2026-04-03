@@ -2,18 +2,35 @@
 
 import { ChangeEvent, FormEvent, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Camera, Globe2, Mail, Phone, User2 } from "lucide-react";
+import {
+  ArrowRight,
+  Camera,
+  Github,
+  Globe2,
+  Instagram,
+  Linkedin,
+  Mail,
+  Phone,
+  User2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@/context/UserContext";
 import { apiBaseUrl } from "@/lib/api";
 
 const emptyForm = {
-  name: "",
+  avatar: "",
+  bio: "",
   email: "",
+  name: "",
   phone: "",
   region: "",
-  avatar: "",
+  socials: {
+    github: "",
+    instagram: "",
+    linkedin: "",
+    x: "",
+  },
 };
 
 export default function LoginForm() {
@@ -29,8 +46,20 @@ export default function LoginForm() {
   }, [form]);
 
   const handleField =
-    (field: keyof typeof emptyForm) => (event: ChangeEvent<HTMLInputElement>) => {
+    (field: "bio" | "email" | "name" | "phone" | "region") =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setForm((current) => ({ ...current, [field]: event.target.value }));
+    };
+
+  const handleSocialField =
+    (field: keyof typeof emptyForm.socials) => (event: ChangeEvent<HTMLInputElement>) => {
+      setForm((current) => ({
+        ...current,
+        socials: {
+          ...current.socials,
+          [field]: event.target.value,
+        },
+      }));
     };
 
   const handleAvatar = (event: ChangeEvent<HTMLInputElement>) => {
@@ -58,10 +87,17 @@ export default function LoginForm() {
 
     const nextProfile = {
       avatar: form.avatar,
+      bio: form.bio.trim(),
       email: form.email.trim(),
       name: form.name.trim(),
       phone: form.phone.trim(),
       region: form.region.trim(),
+      socials: {
+        github: form.socials.github.trim(),
+        instagram: form.socials.instagram.trim(),
+        linkedin: form.socials.linkedin.trim(),
+        x: form.socials.x.trim(),
+      },
     };
 
     try {
@@ -134,8 +170,8 @@ export default function LoginForm() {
           <div className="flex-1 rounded-[28px] border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
             <div className="font-medium text-white">VoidLAB identity card</div>
             <p className="mt-2 leading-6 text-slate-400">
-              Your profile powers the personalized greeting, auto-mail workflow,
-              session identity, and premium workspace feel.
+              Add your bio and social links so your profile page feels real, shareable,
+              and ready for demos or portfolio use.
             </p>
           </div>
         </div>
@@ -145,7 +181,7 @@ export default function LoginForm() {
             icon={<User2 size={16} />}
             label="Full name"
             onChange={handleField("name")}
-            placeholder="Aman Kumar"
+            placeholder="Liam"
             value={form.name}
           />
           <Input
@@ -160,7 +196,7 @@ export default function LoginForm() {
             icon={<Phone size={16} />}
             label="Phone number"
             onChange={handleField("phone")}
-            placeholder="+91 98765 43210"
+            placeholder="Phone number"
             value={form.phone}
           />
           <Input
@@ -172,6 +208,47 @@ export default function LoginForm() {
           />
         </div>
 
+        <label className="block">
+          <span className="mb-2 block text-sm text-slate-300">Bio</span>
+          <textarea
+            className="min-h-[110px] w-full resize-none rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-slate-100 outline-none transition placeholder:text-slate-500 focus:border-sky-300"
+            onChange={handleField("bio")}
+            placeholder="Tell people what you build, explore, or want to ship with VoidLAB."
+            value={form.bio}
+          />
+        </label>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Input
+            icon={<Github size={16} />}
+            label="GitHub"
+            onChange={handleSocialField("github")}
+            placeholder="https://github.com/your-handle"
+            value={form.socials.github}
+          />
+          <Input
+            icon={<Linkedin size={16} />}
+            label="LinkedIn"
+            onChange={handleSocialField("linkedin")}
+            placeholder="https://www.linkedin.com/in/your-handle"
+            value={form.socials.linkedin}
+          />
+          <Input
+            icon={<User2 size={16} />}
+            label="X"
+            onChange={handleSocialField("x")}
+            placeholder="https://x.com/your-handle"
+            value={form.socials.x}
+          />
+          <Input
+            icon={<Instagram size={16} />}
+            label="Instagram"
+            onChange={handleSocialField("instagram")}
+            placeholder="https://instagram.com/your-handle"
+            value={form.socials.instagram}
+          />
+        </div>
+
         {error ? (
           <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">
             {error}
@@ -180,7 +257,7 @@ export default function LoginForm() {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-xs uppercase tracking-[0.24em] text-slate-400">
-            Mobile ready • auto-mail • local drafts • fast compile loop
+            Mobile ready • profile rich • fast compile loop • project ready
           </div>
           <Button className="min-w-[200px]" disabled={submitting} type="submit">
             {submitting ? "Launching" : "Launch VoidLAB"}

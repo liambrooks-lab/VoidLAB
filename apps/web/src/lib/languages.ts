@@ -315,3 +315,11 @@ export const DEFAULT_LANGUAGE = runnableLanguages[0];
 
 export const getLanguageById = (id: string) =>
   allLanguages.find((item) => item.id === id) ?? DEFAULT_LANGUAGE;
+
+export const getLanguageByExtension = (value: string) => {
+  const extension = value.includes(".") ? value.split(".").pop()?.toLowerCase() ?? "" : value.toLowerCase();
+
+  return (
+    allLanguages.find((item) => item.extension.toLowerCase() === extension) ?? DEFAULT_LANGUAGE
+  );
+};

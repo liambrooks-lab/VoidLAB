@@ -34,7 +34,9 @@ type RoomState = {
       id: string;
       languageId: string;
       name: string;
+      path: string;
     }>;
+    folders: string[];
     updatedAt: string;
     updatedBy: string;
   } | null;
@@ -173,6 +175,7 @@ export default function CollaborationPanel() {
         body: JSON.stringify({
           activeFileId: workspace.activeFileId,
           files: workspace.files,
+          folders: workspace.folders,
           participantId,
         }),
       });
@@ -196,7 +199,12 @@ export default function CollaborationPanel() {
     if (!room?.workspace) return;
 
     const current = readWorkspace();
-    persistWorkspace(room.workspace.files, room.workspace.activeFileId, current.gitState);
+    persistWorkspace({
+      ...current,
+      activeFileId: room.workspace.activeFileId,
+      files: room.workspace.files,
+      folders: room.workspace.folders,
+    });
     setStatus(`Pulled the latest workspace shared by ${room.workspace.updatedBy}.`);
   };
 
@@ -353,6 +361,7 @@ export default function CollaborationPanel() {
               {room?.workspace ? (
                 <>
                   <div>Files shared: {room.workspace.files.length}</div>
+                  <div className="mt-2">Folders shared: {room.workspace.folders.length}</div>
                   <div className="mt-2">
                     Updated at: {new Date(room.workspace.updatedAt).toLocaleString()}
                   </div>

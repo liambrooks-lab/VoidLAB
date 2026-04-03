@@ -2,15 +2,31 @@ import { useState } from "react";
 import { apiBaseUrl } from "@/lib/api";
 import { LanguageOption } from "@/lib/languages";
 
+export type ExecutionDetails = {
+  compileOutput: string;
+  memory: number | null;
+  message: string;
+  output: string;
+  status: {
+    description: string;
+    id: number;
+    successful: boolean;
+  };
+  stderr: string;
+  stdout: string;
+  time: string | null;
+  token: string | null;
+};
+
 export const useCompiler = () => {
-  const [output, setOutput] = useState("");
+  const [execution, setExecution] = useState<ExecutionDetails | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const runCode = async (language: LanguageOption, code: string, stdin = "") => {
     setLoading(true);
     setError("");
-    setOutput("");
+    setExecution(null);
 
     try {
       const response = await fetch(`${apiBaseUrl}/api/execute`, {
@@ -30,15 +46,8 @@ export const useCompiler = () => {
         return { ok: false };
       }
 
-      const terminalOutput =
-        data.stdout ||
-        data.stderr ||
-        data.compile_output ||
-        data.message ||
-        "Code executed with no output.";
-
-      setOutput(terminalOutput);
-      return { ok: true };
+      setExecution(data.execution ?? null);
+      return { ok: Boolean(data.execution?.status?.successful), result: data.execution as ExecutionDetails };
     } catch {
       setError("VoidLAB could not reach the execution service.");
       return { ok: false };
@@ -47,5 +56,5 @@ export const useCompiler = () => {
     }
   };
 
-  return { error, loading, output, runCode };
+  return { error, execution, loading, runCode };
 };

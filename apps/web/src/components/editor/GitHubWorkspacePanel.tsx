@@ -44,7 +44,10 @@ export default function GitHubWorkspacePanel() {
     };
 
     setGitState(nextGitState);
-    persistWorkspace(workspace.files, workspace.activeFileId, nextGitState);
+    persistWorkspace({
+      ...workspace,
+      gitState: nextGitState,
+    });
   };
 
   const handleCopy = async () => {

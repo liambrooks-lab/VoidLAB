@@ -11,11 +11,13 @@ type RoomFile = {
   id: string;
   languageId: string;
   name: string;
+  path: string;
 };
 
 type WorkspaceSnapshot = {
   activeFileId: string;
   files: RoomFile[];
+  folders: string[];
   updatedAt: string;
   updatedBy: string;
 };
@@ -203,9 +205,10 @@ export const updateWorkspace = async (req: Request, res: Response) => {
 
   if (!room) return;
 
-  const { activeFileId, files, participantId } = (req.body ?? {}) as {
+  const { activeFileId, files, folders, participantId } = (req.body ?? {}) as {
     activeFileId?: string;
     files?: RoomFile[];
+    folders?: string[];
     participantId?: string;
   };
 
@@ -227,6 +230,7 @@ export const updateWorkspace = async (req: Request, res: Response) => {
   room.workspace = {
     activeFileId,
     files,
+    folders: Array.isArray(folders) ? folders : [],
     updatedAt: new Date().toISOString(),
     updatedBy: author.name,
   };

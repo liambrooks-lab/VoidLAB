@@ -5,6 +5,7 @@ import { FileCode2, X } from "lucide-react";
 type TabFile = {
   id: string;
   name: string;
+  path?: string;
 };
 
 type EditorTabsProps = {
@@ -38,14 +39,15 @@ export default function EditorTabs({
             <FileCode2 size={14} />
             <span>{file.name}</span>
             <span
-              className="rounded-full p-1 text-slate-400 opacity-60 transition hover:bg-white/10 hover:text-white group-hover:opacity-100"
-              onClick={(event) => {
-                event.stopPropagation();
-                onCloseFile(file.id);
-              }}
-            >
-              <X size={12} />
-            </span>
+                  className="rounded-full p-1 text-slate-400 opacity-60 transition hover:bg-white/10 hover:text-white group-hover:opacity-100"
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onCloseFile(file.id);
+                  }}
+                  title={file.path || file.name}
+                >
+                  <X size={12} />
+                </span>
           </button>
         );
       })}

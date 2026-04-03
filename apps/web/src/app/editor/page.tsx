@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { ChangeEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { Download, Loader2, Menu, Play, Save, Sparkles } from "lucide-react";
 import EditorTabs from "@/components/editor/EditorTabs";
@@ -16,36 +16,54 @@ import { useTheme } from "@/context/ThemeContext";
 import { useUser } from "@/context/UserContext";
 import { useCompiler } from "@/hooks/useCompiler";
 import { useShortcuts } from "@/hooks/useShortcuts";
-import {
-  DEFAULT_LANGUAGE,
-  getLanguageById,
-  languageGroups,
-} from "@/lib/languages";
+import { DEFAULT_LANGUAGE, getLanguageByExtension, getLanguageById, languageGroups } from "@/lib/languages";
 import { openPreview } from "@/lib/preview";
 import {
-  buildStarterFile,
-  defaultGitState,
+  appendTerminalHistory,
+  createFolderPath,
+  createWorkspaceFile,
+  executeWorkspaceCommand,
+  formatWorkspacePath,
+  getWorkspaceBaseName,
+  getWorkspaceParentPath,
+  normalizeWorkspacePath,
+  normalizeWorkspaceState,
   persistWorkspace,
   readWorkspace,
   replaceExtension,
+  resolveWorkspacePath,
   type ProjectFile,
-  type GitHubState,
+  type WorkspaceState,
 } from "@/lib/workspace";
 import { useRouter } from "next/navigation";
+
+const readBrowserFile = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error(`Unable to read ${file.name}`));
+    reader.readAsText(file);
+  });
 
 export default function EditorPage() {
   const router = useRouter();
   const { editorTheme } = useTheme();
-  const { isReady, profile } = useUser();
+  const { isReady, profile, recordActivity } = useUser();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [files, setFiles] = useState<ProjectFile[]>([buildStarterFile(DEFAULT_LANGUAGE)]);
-  const [activeFileId, setActiveFileId] = useState("");
-  const [draftFileName, setDraftFileName] = useState("module");
+  const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
+  const [draftName, setDraftName] = useState("src/main");
   const [draftLanguage, setDraftLanguage] = useState(DEFAULT_LANGUAGE.id);
-  const [gitState, setGitState] = useState<GitHubState>(defaultGitState);
   const [statusMessage, setStatusMessage] = useState("Workspace initialized.");
   const [stdin, setStdin] = useState("");
-  const { error, loading, output, runCode } = useCompiler();
+  const [commandInput, setCommandInput] = useState("");
+  const { error, execution, loading, runCode } = useCompiler();
+  const fileImportRef = useRef<HTMLInputElement>(null);
+  const folderImportRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    folderImportRef.current?.setAttribute("webkitdirectory", "");
+    folderImportRef.current?.setAttribute("directory", "");
+  }, []);
 
   useEffect(() => {
     if (!isReady) return;
@@ -55,13 +73,16 @@ export default function EditorPage() {
       return;
     }
 
-    const workspace = readWorkspace();
-    setFiles(workspace.files);
-    setActiveFileId(workspace.activeFileId);
-    setGitState(workspace.gitState);
+    setWorkspace(readWorkspace());
   }, [isReady, profile, router]);
 
-  const activeFile = files.find((file) => file.id === activeFileId) ?? files[0];
+  const persist = (nextWorkspace: WorkspaceState) => {
+    const normalized = normalizeWorkspaceState(nextWorkspace);
+    setWorkspace(normalized);
+    persistWorkspace(normalized);
+  };
+
+  const activeFile = workspace?.files.find((file) => file.id === workspace.activeFileId) ?? workspace?.files[0];
   const currentLanguage = getLanguageById(activeFile?.languageId ?? DEFAULT_LANGUAGE.id);
 
   useEffect(() => {
@@ -69,88 +90,192 @@ export default function EditorPage() {
     setDraftLanguage(activeFile.languageId);
   }, [activeFile]);
 
-  const persist = (
-    nextFiles: ProjectFile[],
-    nextActiveFileId: string,
-    nextGitState: GitHubState = gitState,
-  ) => {
-    persistWorkspace(nextFiles, nextActiveFileId, nextGitState);
-  };
-
   const handleSelectFile = (id: string) => {
-    setActiveFileId(id);
-    persist(files, id);
+    if (!workspace) return;
+
+    const nextWorkspace = {
+      ...workspace,
+      activeFileId: id,
+    };
+
+    persist(nextWorkspace);
   };
 
   const handleCreateFile = () => {
-    const selectedLanguage = getLanguageById(draftLanguage);
-    const nextFile = buildStarterFile(selectedLanguage, draftFileName || "module");
-    const nextFiles = [...files, nextFile];
-    setFiles(nextFiles);
-    setActiveFileId(nextFile.id);
-    persist(nextFiles, nextFile.id);
-    setDraftFileName(`module-${nextFiles.length + 1}`);
-    setStatusMessage(`${nextFile.name} created.`);
+    if (!workspace) return;
+
+    const nextFile = createWorkspaceFile(
+      draftName || "main",
+      draftLanguage,
+      workspace.files,
+      workspace.terminal.cwd,
+    );
+
+    const nextWorkspace = {
+      ...workspace,
+      activeFileId: nextFile.id,
+      files: [...workspace.files, nextFile],
+      folders: workspace.folders.includes(getWorkspaceParentPath(nextFile.path))
+        ? workspace.folders
+        : [
+            ...workspace.folders,
+            ...(() => {
+              const parentPath = getWorkspaceParentPath(nextFile.path);
+              return parentPath ? [parentPath] : [];
+            })(),
+          ],
+    };
+
+    persist(nextWorkspace);
+    setDraftName(`src/module-${nextWorkspace.files.length + 1}`);
+    setStatusMessage(`${formatWorkspacePath(nextFile.path)} created.`);
+    recordActivity({
+      detail: `Created ${formatWorkspacePath(nextFile.path)} in the workspace explorer.`,
+      title: "File created",
+      type: "workspace",
+    });
+  };
+
+  const handleCreateFolder = () => {
+    if (!workspace) return;
+
+    const nextFolderPath = createFolderPath(draftName || "src", workspace.folders, workspace.files, workspace.terminal.cwd);
+
+    if (!nextFolderPath) {
+      setStatusMessage("Folder name is required.");
+      return;
+    }
+
+    const nextWorkspace = {
+      ...workspace,
+      folders: [...workspace.folders, nextFolderPath],
+    };
+
+    persist(nextWorkspace);
+    setStatusMessage(`${formatWorkspacePath(nextFolderPath)} folder created.`);
+    recordActivity({
+      detail: `Created folder ${formatWorkspacePath(nextFolderPath)}.`,
+      title: "Folder created",
+      type: "workspace",
+    });
   };
 
   const handleDeleteFile = (id: string) => {
-    if (files.length === 1) {
+    if (!workspace) return;
+
+    if (workspace.files.length === 1) {
       setStatusMessage("At least one file must stay open.");
       return;
     }
 
-    const nextFiles = files.filter((file) => file.id !== id);
+    const targetFile = workspace.files.find((file) => file.id === id);
+    const nextFiles = workspace.files.filter((file) => file.id !== id);
     const nextActiveFileId =
-      activeFileId === id ? nextFiles[Math.max(0, nextFiles.length - 1)].id : activeFileId;
+      workspace.activeFileId === id ? nextFiles[Math.max(0, nextFiles.length - 1)].id : workspace.activeFileId;
 
-    setFiles(nextFiles);
-    setActiveFileId(nextActiveFileId);
-    persist(nextFiles, nextActiveFileId);
-    setStatusMessage("File closed.");
+    persist({
+      ...workspace,
+      activeFileId: nextActiveFileId,
+      files: nextFiles,
+    });
+
+    if (targetFile) {
+      setStatusMessage(`${formatWorkspacePath(targetFile.path)} removed.`);
+      recordActivity({
+        detail: `Removed ${formatWorkspacePath(targetFile.path)} from the workspace.`,
+        title: "File removed",
+        type: "workspace",
+      });
+    }
+  };
+
+  const handleDeleteFolder = (path: string) => {
+    if (!workspace) return;
+
+    const nextFiles = workspace.files.filter(
+      (file) => file.path !== path && !file.path.startsWith(`${path}/`),
+    );
+    const nextFolders = workspace.folders.filter(
+      (folder) => folder !== path && !folder.startsWith(`${path}/`),
+    );
+    const fallbackFile = nextFiles[0] ?? workspace.files[0];
+
+    persist({
+      ...workspace,
+      activeFileId: nextFiles.some((file) => file.id === workspace.activeFileId)
+        ? workspace.activeFileId
+        : fallbackFile.id,
+      files: nextFiles,
+      folders: nextFolders,
+    });
+
+    setStatusMessage(`${formatWorkspacePath(path)} removed.`);
+    recordActivity({
+      detail: `Removed folder ${formatWorkspacePath(path)} and its nested entries.`,
+      title: "Folder removed",
+      type: "workspace",
+    });
   };
 
   const handleLanguageChange = (nextLanguageId: string) => {
-    if (!activeFile) return;
+    if (!workspace || !activeFile) return;
 
     const selectedLanguage = getLanguageById(nextLanguageId);
-    const nextFiles = files.map((file) =>
+    const nextFiles = workspace.files.map((file) =>
       file.id === activeFile.id
         ? {
             ...file,
             languageId: selectedLanguage.id,
             name: replaceExtension(file.name, selectedLanguage.extension),
+            path: normalizeWorkspacePath(
+              `${getWorkspaceParentPath(file.path) ? `${getWorkspaceParentPath(file.path)}/` : ""}${replaceExtension(file.name, selectedLanguage.extension)}`,
+            ),
           }
         : file,
     );
 
-    setFiles(nextFiles);
-    persist(nextFiles, activeFile.id);
+    persist({
+      ...workspace,
+      files: nextFiles,
+    });
     setStatusMessage(`${selectedLanguage.label} ready.`);
   };
 
   const handleCodeChange = (value: string) => {
-    if (!activeFile) return;
+    if (!workspace || !activeFile) return;
 
-    const nextFiles = files.map((file) =>
-      file.id === activeFile.id ? { ...file, content: value } : file,
-    );
-    setFiles(nextFiles);
-    persist(nextFiles, activeFile.id);
+    persist({
+      ...workspace,
+      files: workspace.files.map((file) =>
+        file.id === activeFile.id ? { ...file, content: value } : file,
+      ),
+    });
   };
 
   const handleSave = () => {
-    if (!activeFile) return;
-    persist(files, activeFile.id);
+    if (!workspace || !activeFile) return;
+
+    persist(workspace);
     setStatusMessage("Workspace saved locally.");
+    recordActivity({
+      detail: `Saved the workspace while focused on ${formatWorkspacePath(activeFile.path)}.`,
+      title: "Workspace saved",
+      type: "save",
+    });
   };
 
   const handleRun = async () => {
-    if (!activeFile) return;
+    if (!workspace || !activeFile) return;
 
     if (currentLanguage.previewable) {
       try {
-        openPreview(files, activeFile.id);
+        openPreview(workspace.files, activeFile.id);
         setStatusMessage(`${currentLanguage.label} preview opened in a new tab.`);
+        recordActivity({
+          detail: `Opened a live preview for ${formatWorkspacePath(activeFile.path)}.`,
+          title: "Preview opened",
+          type: "run",
+        });
       } catch (previewError) {
         setStatusMessage(
           previewError instanceof Error ? previewError.message : "Preview could not be opened.",
@@ -166,11 +291,18 @@ export default function EditorPage() {
 
     setStatusMessage(`Running ${currentLanguage.label}...`);
     const result = await runCode(currentLanguage, activeFile.content, stdin);
+    const status = result.result?.status.description ?? (result.ok ? "Success" : "Failed");
+
     setStatusMessage(
       result.ok
         ? `${currentLanguage.label} completed successfully.`
-        : `Run failed for ${currentLanguage.label}.`,
+        : `${currentLanguage.label} finished with ${status}.`,
     );
+    recordActivity({
+      detail: `Ran ${formatWorkspacePath(activeFile.path)} with status ${status}.`,
+      title: result.ok ? "Program executed" : "Program run needs attention",
+      type: "run",
+    });
   };
 
   const handleDownload = () => {
@@ -186,6 +318,95 @@ export default function EditorPage() {
     setStatusMessage("Current file downloaded.");
   };
 
+  const importWorkspaceFiles = async (fileList: FileList | null, preserveRelativePath: boolean) => {
+    if (!workspace || !fileList?.length) return;
+
+    const browserFiles = Array.from(fileList);
+    const importedFiles = await Promise.all(
+      browserFiles.map(async (file) => {
+        const relativePath = preserveRelativePath
+          ? normalizeWorkspacePath((file as File & { webkitRelativePath?: string }).webkitRelativePath || file.name)
+          : normalizeWorkspacePath(file.name);
+        const content = await readBrowserFile(file);
+        const language = getLanguageByExtension(relativePath);
+
+        return {
+          content,
+          id: `imported-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          languageId: language.id,
+          name: getWorkspaceBaseName(relativePath),
+          path: relativePath,
+        } satisfies ProjectFile;
+      }),
+    );
+
+    const existingByPath = new Map(workspace.files.map((file) => [file.path, file]));
+    importedFiles.forEach((file) => {
+      existingByPath.set(file.path, file);
+    });
+
+    const nextFolders = new Set(workspace.folders);
+    importedFiles.forEach((file) => {
+      const segments = getWorkspaceParentPath(file.path).split("/").filter(Boolean);
+      const chain: string[] = [];
+
+      segments.forEach((segment) => {
+        chain.push(segment);
+        nextFolders.add(chain.join("/"));
+      });
+    });
+
+    const nextWorkspace = {
+      ...workspace,
+      activeFileId: importedFiles[0]?.id ?? workspace.activeFileId,
+      files: Array.from(existingByPath.values()),
+      folders: Array.from(nextFolders),
+    };
+
+    persist(nextWorkspace);
+    setStatusMessage(`${importedFiles.length} file${importedFiles.length > 1 ? "s" : ""} imported.`);
+    recordActivity({
+      detail: `Imported ${importedFiles.length} file${importedFiles.length > 1 ? "s" : ""} into the workspace.`,
+      title: "Files imported",
+      type: "workspace",
+    });
+  };
+
+  const handleImportFiles = async (event: ChangeEvent<HTMLInputElement>) => {
+    await importWorkspaceFiles(event.target.files, false);
+    event.target.value = "";
+  };
+
+  const handleImportFolder = async (event: ChangeEvent<HTMLInputElement>) => {
+    await importWorkspaceFiles(event.target.files, true);
+    event.target.value = "";
+  };
+
+  const handleCommandRun = () => {
+    if (!workspace || !commandInput.trim()) return;
+
+    const trimmed = commandInput.trim();
+    const result = executeWorkspaceCommand(workspace, trimmed);
+    const nextWorkspace = result.clearHistory
+      ? result.workspace
+      : appendTerminalHistory(result.workspace, trimmed, result.output, result.status, result.cwd);
+
+    persist(nextWorkspace);
+
+    if (result.openFileId) {
+      setStatusMessage(`Opened ${formatWorkspacePath(nextWorkspace.files.find((file) => file.id === result.openFileId)?.path ?? "")}.`);
+    } else {
+      setStatusMessage(result.output.split("\n")[0] || "Command completed.");
+    }
+
+    setCommandInput("");
+    recordActivity({
+      detail: `Ran workspace command "${trimmed}" in ${formatWorkspacePath(result.cwd)}.`,
+      title: "Workspace command",
+      type: "command",
+    });
+  };
+
   useShortcuts({
     onEscape: () => setIsSidebarOpen(false),
     onNewFile: handleCreateFile,
@@ -193,12 +414,26 @@ export default function EditorPage() {
     onSave: handleSave,
   });
 
-  if (!profile || !activeFile) return null;
+  if (!profile || !workspace || !activeFile) return null;
 
   const firstName = profile.name.trim().split(/\s+/)[0] || "Builder";
 
   return (
     <main className="app-shell min-h-screen text-slate-100">
+      <input
+        className="hidden"
+        multiple
+        onChange={(event) => void handleImportFiles(event)}
+        ref={fileImportRef}
+        type="file"
+      />
+      <input
+        className="hidden"
+        multiple
+        onChange={(event) => void handleImportFolder(event)}
+        ref={folderImportRef}
+        type="file"
+      />
       <div className="flex min-h-screen flex-col">
         <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/75 backdrop-blur-xl">
           <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
@@ -224,6 +459,12 @@ export default function EditorPage() {
                 <Sparkles size={14} className="text-sky-200" />
                 {profile.region}
               </div>
+              <Link
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/10"
+                href="/editor/profile"
+              >
+                Profile
+              </Link>
               <Link
                 className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/10"
                 href="/"
@@ -256,7 +497,7 @@ export default function EditorPage() {
                   <div>
                     <div className="text-sm font-medium text-white">VoidLAB project workspace</div>
                     <div className="text-xs text-slate-300">
-                      Active file: {activeFile.name} • {currentLanguage.label}
+                      Active file: {formatWorkspacePath(activeFile.path)} • {currentLanguage.label}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -289,32 +530,34 @@ export default function EditorPage() {
                       type="button"
                     >
                       {loading ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
-                      {loading
-                        ? "Running"
-                        : currentLanguage.previewable
-                          ? "Preview"
-                          : "Run"}
+                      {loading ? "Running" : currentLanguage.previewable ? "Preview" : "Run"}
                     </Button>
                   </div>
                 </div>
 
                 <EditorTabs
                   activeFileId={activeFile.id}
-                  files={files.map((file) => ({ id: file.id, name: file.name }))}
+                  files={workspace.files.map((file) => ({ id: file.id, name: file.name, path: file.path }))}
                   onCloseFile={handleDeleteFile}
                   onSelectFile={handleSelectFile}
                 />
 
-                <div className="grid min-h-[520px] md:grid-cols-[250px_minmax(0,1fr)]">
+                <div className="grid min-h-[520px] md:grid-cols-[300px_minmax(0,1fr)]">
                   <FileExplorer
                     activeFileId={activeFile.id}
+                    cwd={workspace.terminal.cwd}
                     draftLanguage={draftLanguage}
-                    draftName={draftFileName}
-                    files={files}
+                    draftName={draftName}
+                    files={workspace.files}
+                    folders={workspace.folders}
                     onCreateFile={handleCreateFile}
+                    onCreateFolder={handleCreateFolder}
                     onDeleteFile={handleDeleteFile}
+                    onDeleteFolder={handleDeleteFolder}
                     onDraftLanguageChange={setDraftLanguage}
-                    onDraftNameChange={setDraftFileName}
+                    onDraftNameChange={setDraftName}
+                    onImportFiles={() => fileImportRef.current?.click()}
+                    onImportFolder={() => folderImportRef.current?.click()}
                     onSelectFile={handleSelectFile}
                   />
                   <div className="min-h-[420px]">
@@ -337,11 +580,16 @@ export default function EditorPage() {
               </section>
 
               <TerminalBox
+                commandHistory={workspace.terminal.history}
+                commandInput={commandInput}
+                cwd={workspace.terminal.cwd}
                 error={error}
+                execution={execution}
                 loading={loading}
+                onCommandChange={setCommandInput}
+                onCommandRun={handleCommandRun}
                 onInputChange={setStdin}
                 onRun={() => void handleRun()}
-                output={output}
                 stdin={stdin}
               />
             </div>

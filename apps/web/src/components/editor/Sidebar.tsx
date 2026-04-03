@@ -1,6 +1,7 @@
 "use client";
 
-import { BookText, Command, Globe2, UserCircle2 } from "lucide-react";
+import Link from "next/link";
+import { BookText, Command, ExternalLink, Globe2, UserCircle2 } from "lucide-react";
 import { UserProfile } from "@/context/UserContext";
 import { LanguageOption } from "@/lib/languages";
 
@@ -11,12 +12,24 @@ type SidebarProps = {
   shortcutItems: Array<{ key: string; label: string }>;
 };
 
+const normalizeUrl = (value: string) => {
+  if (!value) return "";
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+};
+
 export default function Sidebar({
   currentLanguage,
   isOpen,
   profile,
   shortcutItems,
 }: SidebarProps) {
+  const socialLinks = [
+    { label: "GitHub", href: normalizeUrl(profile.socials.github) },
+    { label: "LinkedIn", href: normalizeUrl(profile.socials.linkedin) },
+    { label: "X", href: normalizeUrl(profile.socials.x) },
+    { label: "Instagram", href: normalizeUrl(profile.socials.instagram) },
+  ].filter((item) => item.href);
+
   return (
     <aside
       className={`${
@@ -34,10 +47,33 @@ export default function Sidebar({
                 <UserCircle2 className="text-sky-300" size={22} />
               )}
             </div>
-            <div>
-              <div className="text-sm font-medium text-white">{profile.name}</div>
-              <div className="text-xs text-slate-400">{profile.email}</div>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-medium text-white">{profile.name}</div>
+              <div className="truncate text-xs text-slate-400">{profile.email}</div>
             </div>
+          </div>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm leading-6 text-slate-300">
+            {profile.bio || "Add a bio from your profile setup to personalize this workspace."}
+          </div>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs text-slate-100 transition hover:bg-white/10"
+              href="/editor/profile"
+            >
+              Open profile
+            </Link>
+            {socialLinks.map((item) => (
+              <a
+                className="inline-flex items-center gap-2 rounded-full border border-white/10 px-3 py-2 text-xs text-slate-100 transition hover:bg-white/10"
+                href={item.href}
+                key={item.label}
+                rel="noreferrer"
+                target="_blank"
+              >
+                {item.label}
+                <ExternalLink size={12} />
+              </a>
+            ))}
           </div>
         </div>
 
