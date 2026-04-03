@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Download, Loader2, Menu, Play, Save, Sparkles } from "lucide-react";
+import { Download, FileCode2, Loader2, Menu, Play, Save, Sparkles } from "lucide-react";
 import EditorTabs from "@/components/editor/EditorTabs";
 import FileExplorer from "@/components/editor/FileExplorer";
 import MonacoEditor from "@/components/editor/MonacoEditor";
@@ -84,6 +84,43 @@ export default function EditorPage() {
 
   const activeFile = workspace?.files.find((file) => file.id === workspace.activeFileId) ?? workspace?.files[0];
   const currentLanguage = getLanguageById(activeFile?.languageId ?? DEFAULT_LANGUAGE.id);
+
+  const codeLooksInputDriven = (languageId: string, code: string) => {
+    const normalized = code.toLowerCase();
+
+    switch (languageId) {
+      case "cpp":
+      case "c":
+        return /cin\s*>>|scanf\s*\(|getline\s*\(/i.test(code);
+      case "python":
+        return /\binput\s*\(/i.test(code);
+      case "java":
+        return /scanner\s+\w+|nextline\s*\(|nextint\s*\(|bufferedreader/i.test(code);
+      case "javascript":
+      case "typescript":
+        return /readline|process\.stdin|prompt\s*\(/i.test(code);
+      case "csharp":
+        return /console\.readline\s*\(/i.test(code);
+      case "go":
+        return /fmt\.scan|fmt\.scanln|bufio\.newscanner/i.test(code);
+      case "rust":
+        return /stdin\(\)|read_line\s*\(/i.test(code);
+      case "php":
+        return /readline\s*\(|fgets\s*\(stdin/i.test(normalized);
+      case "ruby":
+        return /gets\b|readline\b/i.test(code);
+      case "swift":
+        return /readline\s*\(/i.test(code);
+      case "kotlin":
+        return /readln\s*\(|readline\s*\(/i.test(code);
+      case "bash":
+        return /\bread\s+[-a-z ]*\w+/i.test(code);
+      case "lua":
+        return /io\.read\s*\(/i.test(code);
+      default:
+        return false;
+    }
+  };
 
   useEffect(() => {
     if (!activeFile) return;
@@ -289,6 +326,11 @@ export default function EditorPage() {
       return;
     }
 
+    if (codeLooksInputDriven(currentLanguage.id, activeFile.content) && !stdin.trim()) {
+      setStatusMessage("This code appears to require input. Add stdin in Program input before running.");
+      return;
+    }
+
     setStatusMessage(`Running ${currentLanguage.label}...`);
     const result = await runCode(currentLanguage, activeFile.content, stdin);
     const status = result.result?.status.description ?? (result.ok ? "Success" : "Failed");
@@ -316,6 +358,24 @@ export default function EditorPage() {
     anchor.click();
     URL.revokeObjectURL(url);
     setStatusMessage("Current file downloaded.");
+  };
+
+  const handleInsertBoilerplate = () => {
+    if (!workspace || !activeFile) return;
+
+    const template = currentLanguage.template;
+    persist({
+      ...workspace,
+      files: workspace.files.map((file) =>
+        file.id === activeFile.id ? { ...file, content: template } : file,
+      ),
+    });
+    setStatusMessage(`${currentLanguage.label} boilerplate inserted.`);
+    recordActivity({
+      detail: `Inserted fresh ${currentLanguage.label} boilerplate into ${formatWorkspacePath(activeFile.path)}.`,
+      title: "Boilerplate inserted",
+      type: "workspace",
+    });
   };
 
   const importWorkspaceFiles = async (fileList: FileList | null, preserveRelativePath: boolean) => {
@@ -524,6 +584,10 @@ export default function EditorPage() {
                       <Download size={15} />
                       Export
                     </Button>
+                    <Button onClick={handleInsertBoilerplate} tone="secondary" type="button">
+                      <FileCode2 size={15} />
+                      Boilerplate
+                    </Button>
                     <Button
                       disabled={loading || (!currentLanguage.runnable && !currentLanguage.previewable)}
                       onClick={() => void handleRun()}
@@ -564,6 +628,7 @@ export default function EditorPage() {
                     <MonacoEditor
                       language={currentLanguage.monacoLanguage}
                       onChange={handleCodeChange}
+                      path={activeFile.path}
                       theme={editorTheme}
                       value={activeFile.content}
                     />

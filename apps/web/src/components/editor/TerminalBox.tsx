@@ -30,10 +30,10 @@ function OutputSection({ label, tone = "default", value }: SectionProps) {
 
   const classes =
     tone === "danger"
-      ? "border-rose-400/20 bg-rose-500/10 text-rose-100"
+      ? "border-rose-200 bg-rose-50 text-rose-900"
       : tone === "success"
-        ? "border-emerald-400/20 bg-emerald-500/10 text-emerald-50"
-        : "border-white/10 bg-white/5 text-slate-100";
+        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
+        : "border-slate-200 bg-slate-50 text-slate-900";
 
   return (
     <div className={`rounded-[22px] border p-4 ${classes}`}>
@@ -77,10 +77,11 @@ export default function TerminalBox({
         <div className="border-b border-white/10 p-5 xl:border-b-0 xl:border-r">
           <div className="text-sm font-semibold text-white">Program input</div>
           <div className="mt-2 text-sm leading-6 text-slate-300">
-            Paste stdin exactly as the program expects it. New lines are preserved.
+            Paste stdin exactly as the program expects it. New lines are preserved. Input-driven
+            code should be tested from here before you press Run.
           </div>
           <textarea
-            className="mt-4 min-h-[190px] w-full resize-none rounded-[24px] border border-white/10 bg-slate-950/40 p-4 font-mono text-sm leading-7 text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-300"
+            className="theme-input mt-4 min-h-[190px] w-full resize-none rounded-[24px] p-4 font-mono text-sm leading-7 outline-none focus:border-sky-300"
             onChange={(event) => onInputChange(event.target.value)}
             placeholder={"5\n10 20\nhello"}
             value={stdin}
@@ -97,8 +98,8 @@ export default function TerminalBox({
             </div>
           </div>
 
-          <div className="mt-4 rounded-[24px] border border-white/10 bg-slate-950/40 p-4">
-            <div className="scrollbar-thin h-[190px] space-y-3 overflow-y-auto pr-2 font-mono text-sm leading-6 text-slate-200">
+          <div className="theme-input mt-4 rounded-[24px] p-4">
+            <div className="scrollbar-thin h-[190px] space-y-3 overflow-y-auto pr-2 font-mono text-sm leading-6 text-slate-800">
               {commandHistory.length ? (
                 commandHistory.map((entry) => (
                   <div key={entry.id}>
@@ -108,10 +109,10 @@ export default function TerminalBox({
                     <pre
                       className={`mt-1 whitespace-pre-wrap break-words ${
                         entry.status === "error"
-                          ? "text-rose-200"
+                          ? "text-rose-700"
                           : entry.status === "success"
-                            ? "text-slate-100"
-                            : "text-slate-300"
+                            ? "text-slate-900"
+                            : "text-slate-700"
                       }`}
                     >
                       {entry.output}
@@ -119,7 +120,7 @@ export default function TerminalBox({
                   </div>
                 ))
               ) : (
-                <div className="text-slate-400">
+                <div className="text-slate-500">
                   Run commands like <code>ls</code>, <code>tree</code>, <code>mkdir src</code>,
                   <code>touch src/main.py</code>, <code>open src/main.py</code>, or <code>help</code>.
                 </div>
@@ -128,7 +129,7 @@ export default function TerminalBox({
 
             <div className="mt-4 flex gap-3">
               <input
-                className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-300"
+                className="theme-input flex-1 rounded-2xl px-4 py-3 text-sm outline-none focus:border-sky-300"
                 onChange={(event) => onCommandChange(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -186,7 +187,7 @@ export default function TerminalBox({
                 ) : null}
               </>
             ) : (
-              <div className="rounded-[24px] border border-white/10 bg-slate-950/40 p-4 text-slate-400">
+              <div className="theme-input rounded-[24px] p-4 text-slate-600">
                 [system] Structured execution output will appear here after you run the active file.
               </div>
             )}

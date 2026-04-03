@@ -4,6 +4,7 @@ import Editor from "@monaco-editor/react";
 
 interface Props {
   language: string;
+  path?: string;
   theme?: "vs-dark" | "light";
   value: string;
   onChange: (value: string) => void;
@@ -11,6 +12,7 @@ interface Props {
 
 export default function MonacoEditor({
   language,
+  path,
   theme = "vs-dark",
   value,
   onChange,
@@ -20,6 +22,7 @@ export default function MonacoEditor({
       height="100%"
       language={language}
       onChange={(nextValue) => onChange(nextValue ?? "")}
+      path={path}
       options={{
         automaticLayout: true,
         fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
@@ -34,6 +37,7 @@ export default function MonacoEditor({
         tabSize: 2,
         wordWrap: "on",
       }}
+      saveViewState
       theme={theme}
       value={value}
     />
