@@ -12,11 +12,11 @@ export default function LoginPage() {
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-sky-100 bg-white px-4 py-2 text-xs uppercase tracking-[0.28em] text-slate-600 shadow-[0_12px_30px_rgba(148,163,184,0.12)]">
               Premium cloud workspace
             </div>
-            <h1 className="display-font text-5xl font-bold tracking-[-0.05em] text-slate-950 sm:text-6xl lg:text-7xl">
+            <h1 className="display-font theme-text text-5xl font-bold tracking-[-0.05em] sm:text-6xl lg:text-7xl">
               Build faster in the cloud with{" "}
-              <span className="text-sky-700">VoidLAB</span>.
+              <span className="text-sky-700 [text-shadow:0_8px_24px_rgba(59,130,246,0.18)]">VoidLAB</span>.
             </h1>
-            <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">
+            <p className="theme-muted mt-6 max-w-xl text-lg leading-8">
               A polished online IDE and compiler for builders who want a clean,
               modern workspace. Write from any device, run instantly, and shape
               your identity later from the in-product profile section.

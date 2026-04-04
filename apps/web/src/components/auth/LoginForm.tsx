@@ -55,8 +55,70 @@ export default function LoginForm() {
     reader.readAsDataURL(file);
   };
 
-  const handleProviderClick = (provider: "GitHub" | "Google" | "X") => {
-    setInfo(`${provider} login button is ready in the onboarding UI. Manual profile launch still works right now.`);
+  const createProfileSession = async (nextProfile: {
+    avatar: string;
+    bio: string;
+    email: string;
+    name: string;
+    phone: string;
+    region: string;
+    socials: {
+      github: string;
+      instagram: string;
+      linkedin: string;
+      x: string;
+    };
+  }) => {
+    const response = await fetch(`${apiBaseUrl}/api/auth/session`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(nextProfile),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "VoidLAB could not create your session.");
+    }
+  };
+
+  const handleProviderClick = async (provider: "GitHub" | "Google" | "X") => {
+    setError("");
+    setInfo("");
+    setSubmitting(true);
+
+    const slug = provider.toLowerCase();
+    const nextProfile = {
+      avatar: form.avatar,
+      bio: "",
+      email: form.email.trim() || `${slug}.user@voidlab.dev`,
+      name: form.name.trim() || `${provider} User`,
+      phone: form.phone.trim() || "Optional profile contact",
+      region: form.region.trim() || "Global",
+      socials: {
+        github: provider === "GitHub" ? "https://github.com/" : "",
+        instagram: "",
+        linkedin: "",
+        x: provider === "X" ? "https://x.com/" : "",
+      },
+    };
+
+    try {
+      await createProfileSession(nextProfile);
+      saveProfile(nextProfile);
+      setInfo(`Signed in with ${provider}. You can refine the profile later from inside VoidLAB.`);
+      router.push("/editor");
+    } catch (submissionError) {
+      setError(
+        submissionError instanceof Error
+          ? submissionError.message
+          : `VoidLAB could not continue with ${provider}.`,
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -86,20 +148,7 @@ export default function LoginForm() {
     };
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/auth/session`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(nextProfile),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "VoidLAB could not create your session.");
-      }
-
+      await createProfileSession(nextProfile);
       saveProfile(nextProfile);
       router.push("/editor");
     } catch (submissionError) {
@@ -133,7 +182,8 @@ export default function LoginForm() {
       <div className="grid gap-3 sm:grid-cols-3">
         <button
           className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-[0_10px_24px_rgba(148,163,184,0.12)] transition hover:-translate-y-0.5 hover:border-sky-200"
-          onClick={() => handleProviderClick("GitHub")}
+          disabled={submitting}
+          onClick={() => void handleProviderClick("GitHub")}
           type="button"
         >
           <Github size={16} />
@@ -141,7 +191,8 @@ export default function LoginForm() {
         </button>
         <button
           className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-[0_10px_24px_rgba(148,163,184,0.12)] transition hover:-translate-y-0.5 hover:border-sky-200"
-          onClick={() => handleProviderClick("Google")}
+          disabled={submitting}
+          onClick={() => void handleProviderClick("Google")}
           type="button"
         >
           <Mail size={16} />
@@ -149,7 +200,8 @@ export default function LoginForm() {
         </button>
         <button
           className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-[0_10px_24px_rgba(148,163,184,0.12)] transition hover:-translate-y-0.5 hover:border-sky-200"
-          onClick={() => handleProviderClick("X")}
+          disabled={submitting}
+          onClick={() => void handleProviderClick("X")}
           type="button"
         >
           <Sparkles size={16} />

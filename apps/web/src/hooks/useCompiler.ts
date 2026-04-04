@@ -7,6 +7,7 @@ export type ExecutionDetails = {
   memory: number | null;
   message: string;
   output: string;
+  processing?: boolean;
   status: {
     description: string;
     id: number;
@@ -17,6 +18,8 @@ export type ExecutionDetails = {
   time: string | null;
   token: string | null;
 };
+
+const delay = (value: number) => new Promise((resolve) => setTimeout(resolve, value));
 
 export const useCompiler = () => {
   const [execution, setExecution] = useState<ExecutionDetails | null>(null);
@@ -29,7 +32,7 @@ export const useCompiler = () => {
     setExecution(null);
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/execute`, {
+      const createResponse = await fetch(`${apiBaseUrl}/api/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -39,15 +42,36 @@ export const useCompiler = () => {
         }),
       });
 
-      const data = await response.json();
+      const createData = await createResponse.json();
 
-      if (!response.ok) {
-        setError(data.error || "Execution failed.");
+      if (!createResponse.ok || !createData.token) {
+        setError(createData.error || "Execution failed.");
         return { ok: false };
       }
 
-      setExecution(data.execution ?? null);
-      return { ok: Boolean(data.execution?.status?.successful), result: data.execution as ExecutionDetails };
+      const maxAttempts = 40;
+
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        const statusResponse = await fetch(`${apiBaseUrl}/api/execute/${createData.token}`);
+        const statusData = await statusResponse.json();
+
+        if (!statusResponse.ok) {
+          setError(statusData.error || "Execution failed while polling status.");
+          return { ok: false };
+        }
+
+        const nextExecution = statusData.execution as ExecutionDetails;
+        setExecution(nextExecution);
+
+        if (!nextExecution.processing) {
+          return { ok: Boolean(nextExecution.status?.successful), result: nextExecution };
+        }
+
+        await delay(700);
+      }
+
+      setError("Execution is taking too long. Please run again or simplify the program input.");
+      return { ok: false };
     } catch {
       setError("VoidLAB could not reach the execution service.");
       return { ok: false };

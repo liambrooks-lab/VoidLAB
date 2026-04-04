@@ -18,9 +18,13 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const stored = window.localStorage.getItem(storageKey) as ThemeName | null;
-    const nextTheme = stored ?? "porcelain";
+    const nextTheme =
+      stored === "cerulean" || stored === "midnight" || stored === "ember" || stored === "porcelain"
+        ? stored
+        : "porcelain";
     document.documentElement.dataset.theme = nextTheme;
     setThemeState(nextTheme);
+    window.localStorage.setItem(storageKey, nextTheme);
   }, []);
 
   const setTheme = (nextTheme: ThemeName) => {
