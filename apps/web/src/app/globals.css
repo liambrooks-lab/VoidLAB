@@ -8,7 +8,7 @@
   --font-display: "Bahnschrift", "Aptos", "Segoe UI", sans-serif;
   --text: #0f172a;
   --muted: #5f6f86;
-  --border: rgba(148, 163, 184, 0.28);
+  --border: color-mix(in srgb, rgba(255, 255, 255, 0.7) 70%, rgba(15, 23, 42, 0.1) 30%);
   --shadow: 0 20px 70px rgba(148, 163, 184, 0.16);
   --background-main:
     radial-gradient(circle at top left, rgba(96, 165, 250, 0.12), transparent 26%),
@@ -107,8 +107,8 @@ body {
 
 .glass {
   background: var(--glass-background);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 
 .panel {
@@ -203,7 +203,7 @@ body {
 }
 
 :root[data-theme="porcelain"] .border-white\/10 {
-  border-color: rgba(148, 163, 184, 0.24) !important;
+  border-color: color-mix(in srgb, rgba(255, 255, 255, 0.7) 70%, rgba(15, 23, 42, 0.1) 30%) !important;
 }
 
 :root[data-theme="porcelain"] .border-sky-300\/20,

@@ -31,6 +31,8 @@ export const useCompiler = () => {
     setError("");
     setExecution(null);
 
+    const stdinPayload = typeof stdin === "string" ? stdin : "";
+
     try {
       const createResponse = await fetch(`${apiBaseUrl}/api/execute`, {
         method: "POST",
@@ -38,7 +40,7 @@ export const useCompiler = () => {
         body: JSON.stringify({
           code,
           languageId: language.judge0Id,
-          stdin,
+          stdin: stdinPayload,
         }),
       });
 

@@ -51,7 +51,8 @@ const runnableLanguages: LanguageOption[] = [
     monacoLanguage: "python",
     runnable: true,
     runtimeLabel: "Python 3.13 runtime",
-    template: 'print("Welcome to VoidLAB")\n',
+    template:
+      'age = int(input().strip())\nname = input().strip()\n\nprint(f"Age: {age}")\nprint(f"Name: {name}")\n',
   },
   {
     id: "java",
@@ -91,9 +92,9 @@ const runnableLanguages: LanguageOption[] = [
     judge0Id: 105,
     monacoLanguage: "cpp",
     runnable: true,
-    runtimeLabel: "GCC 14 compiler",
+    runtimeLabel: "GCC 14 compiler with -std=c++26",
     template:
-      '#include <iostream>\n\nint main() {\n  std::cout << "Welcome to VoidLAB" << std::endl;\n}\n',
+      '#include <iostream>\n#include <limits>\n#include <string>\n\nusing namespace std;\n\nint main() {\n  int age = 0;\n  string name;\n\n  cin >> age;\n  cin.ignore(numeric_limits<streamsize>::max(), \'\\n\');\n  getline(cin, name);\n\n  cout << "Age: " << age << \'\\n\';\n  cout << "Name: " << name << \'\\n\';\n  return 0;\n}\n',
   },
   {
     id: "go",

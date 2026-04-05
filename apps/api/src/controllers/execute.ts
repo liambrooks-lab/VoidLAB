@@ -2,6 +2,9 @@ import axios from "axios";
 import { Request, Response } from "express";
 
 const judge0ApiUrl = process.env.JUDGE0_API_URL ?? "https://ce.judge0.com";
+const C_PLUS_PLUS_LANGUAGE_ID = 105;
+const JAVASCRIPT_LANGUAGE_ID = 102;
+const TYPESCRIPT_LANGUAGE_ID = 101;
 
 const encode = (value: string) => Buffer.from(value, "utf8").toString("base64");
 
@@ -16,6 +19,72 @@ const decode = (value?: string | null) => {
 };
 
 const isFinalStatus = (statusId: number) => statusId >= 3;
+
+const hasPromptCall = (source: string) => /\b(?:window\.)?prompt\s*\(/.test(source);
+const hasCustomPromptImplementation = (source: string) =>
+  /\b(?:function\s+prompt|const\s+prompt|let\s+prompt|var\s+prompt)\b/.test(source);
+
+const promptShimPrelude = `
+const __voidlabRawStdin = __VOIDLAB_READ_STDIN__;
+const __voidlabLines = __voidlabRawStdin.length
+  ? __voidlabRawStdin.replace(/\\r\\n/g, "\\n").replace(/\\r/g, "\\n").split("\\n")
+  : [];
+
+if (__voidlabLines.length > 0 && __voidlabLines[__voidlabLines.length - 1] === "") {
+  __voidlabLines.pop();
+}
+
+let __voidlabCursor = 0;
+const __voidlabPrompt = (..._args) =>
+  __voidlabCursor < __voidlabLines.length ? __voidlabLines[__voidlabCursor++] : null;
+`.trim();
+
+const injectPromptShim = (languageId: number, source: string) => {
+  if (!hasPromptCall(source) || hasCustomPromptImplementation(source)) {
+    return source;
+  }
+
+  if (languageId === JAVASCRIPT_LANGUAGE_ID) {
+    return [
+      'const { readFileSync } = require("node:fs");',
+      promptShimPrelude.replace("__VOIDLAB_READ_STDIN__", 'readFileSync(0, "utf8")'),
+      "globalThis.prompt = __voidlabPrompt;",
+      "if (typeof globalThis.window === \"undefined\") {",
+      "  globalThis.window = globalThis;",
+      "}",
+      "if (typeof globalThis.window.prompt !== \"function\") {",
+      "  globalThis.window.prompt = __voidlabPrompt;",
+      "}",
+      source,
+    ].join("\n\n");
+  }
+
+  if (languageId === TYPESCRIPT_LANGUAGE_ID) {
+    return [
+      'import { readFileSync } from "node:fs";',
+      promptShimPrelude
+        .replace("__VOIDLAB_READ_STDIN__", 'readFileSync(0, "utf8")')
+        .replace("(..._args) =>", "(..._args: unknown[]) =>"),
+      `const __voidlabGlobal = globalThis as typeof globalThis & {
+  prompt?: typeof __voidlabPrompt;
+  window?: typeof globalThis & { prompt?: typeof __voidlabPrompt };
+};`,
+      "__voidlabGlobal.prompt = __voidlabPrompt;",
+      "if (!__voidlabGlobal.window) {",
+      "  __voidlabGlobal.window = globalThis as typeof globalThis & { prompt?: typeof __voidlabPrompt };",
+      "}",
+      "if (typeof __voidlabGlobal.window.prompt !== \"function\") {",
+      "  __voidlabGlobal.window.prompt = __voidlabPrompt;",
+      "}",
+      source,
+    ].join("\n\n");
+  }
+
+  return source;
+};
+
+const getCompilerOptions = (languageId: number) =>
+  languageId === C_PLUS_PLUS_LANGUAGE_ID ? "-std=c++26" : undefined;
 
 const mapExecution = (data: any) => {
   const stdout = decode(data.stdout);
@@ -48,22 +117,28 @@ const mapExecution = (data: any) => {
 
 export const executeCode = async (req: Request, res: Response) => {
   const { code, languageId, stdin } = req.body ?? {};
+  const numericLanguageId = Number(languageId);
 
-  if (typeof code !== "string" || !code.trim() || !languageId) {
+  if (typeof code !== "string" || !code.trim() || !numericLanguageId) {
     return res.status(400).json({
       error: "Language id and code are required.",
     });
   }
 
+  const normalizedStdin = typeof stdin === "string" ? stdin : "";
+  const sourceCode = injectPromptShim(numericLanguageId, code);
+  const compilerOptions = getCompilerOptions(numericLanguageId);
+
   try {
     const response = await axios.post(
       `${judge0ApiUrl}/submissions/?base64_encoded=true&wait=false`,
       {
+        compiler_options: compilerOptions,
         cpu_time_limit: 8,
-        language_id: Number(languageId),
+        language_id: numericLanguageId,
         memory_limit: 524288,
-        source_code: encode(code),
-        stdin: encode(typeof stdin === "string" ? stdin : ""),
+        source_code: encode(sourceCode),
+        stdin: encode(normalizedStdin),
         wall_time_limit: 20,
       },
       {

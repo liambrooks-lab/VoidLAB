@@ -75,15 +75,17 @@ export default function TerminalBox({
       </div>
       <div className="grid gap-0 xl:grid-cols-[320px_360px_minmax(0,1fr)]">
         <div className="border-b border-white/10 p-5 xl:border-b-0 xl:border-r">
-          <div className="text-sm font-semibold text-white">Program input</div>
+          <div className="text-sm font-semibold text-white">
+            Input (stdin) - for interactive programs
+          </div>
           <div className="mt-2 text-sm leading-6 text-slate-300">
-            Paste stdin exactly as the program expects it. New lines are preserved. Input-driven
-            code should be tested from here before you press Run.
+            Paste stdin exactly as the program expects it. New lines and copy-paste are preserved,
+            and the Run action always sends this field to the backend, even when it is empty.
           </div>
           <textarea
             className="theme-input mt-4 min-h-[190px] w-full resize-none rounded-[24px] p-4 font-mono text-sm leading-7 outline-none focus:border-sky-300"
             onChange={(event) => onInputChange(event.target.value)}
-            placeholder={"5\n10 20\nhello"}
+            placeholder={"21\nAda Lovelace"}
             value={stdin}
           />
         </div>

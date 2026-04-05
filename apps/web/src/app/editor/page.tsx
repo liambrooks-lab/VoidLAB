@@ -326,12 +326,14 @@ export default function EditorPage() {
       return;
     }
 
-    if (codeLooksInputDriven(currentLanguage.id, activeFile.content) && !stdin.trim()) {
-      setStatusMessage("This code appears to require input. Add stdin in Program input before running.");
-      return;
-    }
+    const runningWithEmptyStdin =
+      codeLooksInputDriven(currentLanguage.id, activeFile.content) && !stdin.length;
 
-    setStatusMessage(`Running ${currentLanguage.label}...`);
+    setStatusMessage(
+      runningWithEmptyStdin
+        ? `Running ${currentLanguage.label} with empty stdin (EOF will be sent).`
+        : `Running ${currentLanguage.label}...`,
+    );
     const result = await runCode(currentLanguage, activeFile.content, stdin);
     const status = result.result?.status.description ?? (result.ok ? "Success" : "Failed");
 

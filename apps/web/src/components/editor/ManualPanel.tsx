@@ -33,7 +33,7 @@ export default function ManualPanel() {
             <p>2. Create or select a file from the explorer.</p>
             <p>3. Choose the language for the active file from the top bar.</p>
             <p>4. Write code in the editor and click Run or Preview.</p>
-            <p>5. Use the terminal input box for stdin-based programs.</p>
+            <p>5. Use Input (stdin) for interactive programs before pressing Run.</p>
             <p>6. Read output, errors, and runtime messages in the terminal.</p>
           </div>
         </div>
