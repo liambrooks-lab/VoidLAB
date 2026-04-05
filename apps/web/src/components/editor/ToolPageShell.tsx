@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import Brand from "@/components/layout/Brand";
+import SessionControls from "@/components/layout/SessionControls";
 import ThemeSwitcher from "@/components/layout/ThemeSwitcher";
 
 type ToolPageShellProps = {
@@ -33,7 +34,10 @@ export default function ToolPageShell({
               </Link>
               <Brand compact />
             </div>
-            <ThemeSwitcher />
+            <div className="flex items-center gap-3">
+              <ThemeSwitcher />
+              <SessionControls />
+            </div>
           </div>
         </header>
 

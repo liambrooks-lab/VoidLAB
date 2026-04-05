@@ -1,7 +1,11 @@
 import LoginForm from "@/components/auth/LoginForm";
 import Navbar from "@/components/layout/Navbar";
 
-export default function LoginPage() {
+export default function LoginPage({
+  searchParams,
+}: {
+  searchParams?: { authError?: string };
+}) {
   return (
     <main className="hero-grid relative min-h-screen overflow-hidden px-4 pb-8 pt-6 sm:px-6 lg:px-10">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(96,165,250,0.14),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(191,219,254,0.45),transparent_22%)]" />
@@ -22,7 +26,7 @@ export default function LoginPage() {
               your identity later from the in-product profile section.
             </p>
           </div>
-          <LoginForm />
+          <LoginForm authError={searchParams?.authError} />
         </section>
       </div>
     </main>

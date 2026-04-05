@@ -10,6 +10,7 @@ import Sidebar from "@/components/editor/Sidebar";
 import TerminalBox from "@/components/editor/TerminalBox";
 import ToolLauncherBar from "@/components/editor/ToolLauncherBar";
 import Brand from "@/components/layout/Brand";
+import SessionControls from "@/components/layout/SessionControls";
 import ThemeSwitcher from "@/components/layout/ThemeSwitcher";
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/context/ThemeContext";
@@ -519,7 +520,7 @@ export default function EditorPage() {
               <ThemeSwitcher />
               <div className="hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 sm:flex sm:items-center sm:gap-2">
                 <Sparkles size={14} className="text-sky-200" />
-                {profile.region}
+                {profile.region || "Global"}
               </div>
               <Link
                 className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/10"
@@ -527,12 +528,7 @@ export default function EditorPage() {
               >
                 Profile
               </Link>
-              <Link
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/10"
-                href="/"
-              >
-                Switch profile
-              </Link>
+              <SessionControls />
             </div>
           </div>
         </header>

@@ -1,5 +1,6 @@
 import { ArrowUpRight, ShieldCheck } from "lucide-react";
 import Brand from "@/components/layout/Brand";
+import SessionControls from "@/components/layout/SessionControls";
 import ThemeSwitcher from "@/components/layout/ThemeSwitcher";
 
 export default function Navbar() {
@@ -13,6 +14,7 @@ export default function Navbar() {
           Stable, responsive, keyboard-first
           <ArrowUpRight size={15} className="text-sky-200" />
         </div>
+        <SessionControls showEditorLink />
       </div>
     </header>
   );

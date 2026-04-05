@@ -72,22 +72,28 @@ export default function ProfilePanel() {
     };
 
   const handleSave = () => {
-    saveProfile({
-      ...profile,
+    void saveProfile({
       bio: draft.bio.trim(),
+      phone: profile.phone,
+      region: profile.region,
       socials: {
         github: draft.socials.github.trim(),
         instagram: draft.socials.instagram.trim(),
         linkedin: draft.socials.linkedin.trim(),
         x: draft.socials.x.trim(),
       },
-    });
-    recordActivity({
-      detail: "Refined bio or social links from the in-product profile page.",
-      title: "Profile polished",
-      type: "profile",
-    });
-    setStatus("Profile details saved inside VoidLAB.");
+    })
+      .then(() => {
+        recordActivity({
+          detail: "Refined bio or social links from the in-product profile page.",
+          title: "Profile polished",
+          type: "profile",
+        });
+        setStatus("Profile details saved inside VoidLAB.");
+      })
+      .catch((error) => {
+        setStatus(error instanceof Error ? error.message : "Profile details could not be saved.");
+      });
   };
 
   return (
@@ -117,14 +123,14 @@ export default function ProfilePanel() {
                   <MapPin size={16} />
                   Region
                 </div>
-                <div className="mt-2">{profile.region}</div>
+                <div className="mt-2">{profile.region || "Global"}</div>
               </div>
               <div className="rounded-[24px] border border-sky-100 bg-slate-50 p-4 text-sm text-slate-700">
                 <div className="flex items-center gap-2 font-medium text-slate-900">
                   <Phone size={16} />
                   Contact
                 </div>
-                <div className="mt-2">{profile.phone}</div>
+                <div className="mt-2">{profile.phone || "Not added yet"}</div>
               </div>
             </div>
           </div>

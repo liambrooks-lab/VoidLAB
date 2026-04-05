@@ -79,7 +79,7 @@ export default function ManualPanel() {
             <p><strong>File Explorer:</strong> manage multiple files in one workspace.</p>
             <p><strong>Tabs:</strong> switch quickly between active files.</p>
             <p><strong>Theme Switcher:</strong> change the interface style.</p>
-            <p><strong>GitHub Publish:</strong> copy repo setup commands from a focused GitHub page.</p>
+            <p><strong>GitHub Publish:</strong> connect GitHub and push the active file to a real repository.</p>
             <p><strong>Collaboration:</strong> create rooms, sync workspace state, and chat with teammates.</p>
             <p><strong>AI Guide:</strong> ask for workflow, debugging, or product help.</p>
             <p><strong>Terminal:</strong> inspect output, compile messages, and execution errors.</p>

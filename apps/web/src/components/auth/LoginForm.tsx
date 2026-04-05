@@ -1,299 +1,111 @@
 "use client";
 
-import { ChangeEvent, FormEvent, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import {
-  ArrowRight,
-  Camera,
-  Github,
-  Globe2,
-  Mail,
-  Phone,
-  Sparkles,
-  User2,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Github, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import { useUser } from "@/context/UserContext";
-import { apiBaseUrl } from "@/lib/api";
+import { buildOAuthStartUrl } from "@/lib/auth";
 
-const emptyForm = {
-  avatar: "",
-  email: "",
-  name: "",
-  phone: "",
-  region: "",
+const providerCards = [
+  {
+    description: "Use your Google account for a polished one-click sign-in flow.",
+    href: buildOAuthStartUrl("google"),
+    icon: Mail,
+    label: "Continue with Google",
+  },
+  {
+    description: "Connect GitHub to unlock real repository pushes from VoidLAB.",
+    href: buildOAuthStartUrl("github"),
+    icon: Github,
+    label: "Continue with GitHub",
+  },
+  {
+    description: "Use X OAuth 2.0 so your profile and identity stay linked securely.",
+    href: buildOAuthStartUrl("x"),
+    icon: Sparkles,
+    label: "Continue with X",
+  },
+];
+
+type LoginFormProps = {
+  authError?: string;
 };
 
-export default function LoginForm() {
-  const router = useRouter();
-  const { saveProfile } = useUser();
-  const [form, setForm] = useState(emptyForm);
-  const [error, setError] = useState("");
-  const [info, setInfo] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const completion = useMemo(() => {
-    const values = [form.name, form.email, form.phone, form.region];
-    return Math.round((values.filter((value) => value.trim()).length / values.length) * 100);
-  }, [form]);
-
-  const handleField =
-    (field: keyof typeof emptyForm) => (event: ChangeEvent<HTMLInputElement>) => {
-      setForm((current) => ({ ...current, [field]: event.target.value }));
-    };
-
-  const handleAvatar = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = () => {
-      setForm((current) => ({ ...current, avatar: String(reader.result ?? "") }));
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const createProfileSession = async (nextProfile: {
-    avatar: string;
-    bio: string;
-    email: string;
-    name: string;
-    phone: string;
-    region: string;
-    socials: {
-      github: string;
-      instagram: string;
-      linkedin: string;
-      x: string;
-    };
-  }) => {
-    const response = await fetch(`${apiBaseUrl}/api/auth/session`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(nextProfile),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(data.error || "VoidLAB could not create your session.");
-    }
-  };
-
-  const handleProviderClick = async (provider: "GitHub" | "Google" | "X") => {
-    setError("");
-    setInfo("");
-    setSubmitting(true);
-
-    const slug = provider.toLowerCase();
-    const nextProfile = {
-      avatar: form.avatar,
-      bio: "",
-      email: form.email.trim() || `${slug}.user@voidlab.dev`,
-      name: form.name.trim() || `${provider} User`,
-      phone: form.phone.trim() || "Optional profile contact",
-      region: form.region.trim() || "Global",
-      socials: {
-        github: provider === "GitHub" ? "https://github.com/" : "",
-        instagram: "",
-        linkedin: "",
-        x: provider === "X" ? "https://x.com/" : "",
-      },
-    };
-
-    try {
-      await createProfileSession(nextProfile);
-      saveProfile(nextProfile);
-      setInfo(`Signed in with ${provider}. You can refine the profile later from inside VoidLAB.`);
-      router.push("/editor");
-    } catch (submissionError) {
-      setError(
-        submissionError instanceof Error
-          ? submissionError.message
-          : `VoidLAB could not continue with ${provider}.`,
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setError("");
-
-    if (!form.name.trim() || !form.email.trim() || !form.phone.trim() || !form.region.trim()) {
-      setError("Please complete all required fields before launching VoidLAB.");
-      return;
-    }
-
-    setSubmitting(true);
-
-    const nextProfile = {
-      avatar: form.avatar,
-      bio: "",
-      email: form.email.trim(),
-      name: form.name.trim(),
-      phone: form.phone.trim(),
-      region: form.region.trim(),
-      socials: {
-        github: "",
-        instagram: "",
-        linkedin: "",
-        x: "",
-      },
-    };
-
-    try {
-      await createProfileSession(nextProfile);
-      saveProfile(nextProfile);
-      router.push("/editor");
-    } catch (submissionError) {
-      setError(
-        submissionError instanceof Error
-          ? submissionError.message
-          : "VoidLAB could not create your session.",
-      );
-      setSubmitting(false);
-    }
-  };
+export default function LoginForm({ authError = "" }: LoginFormProps) {
+  const { isReady, profile } = useUser();
 
   return (
     <section className="glass w-full max-w-xl rounded-[32px] p-5 sm:p-8">
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <div className="display-font text-3xl font-semibold tracking-[-0.05em] theme-text">
-            Launch your workspace
+            Continue to VoidLAB
           </div>
           <p className="mt-2 text-sm leading-6 theme-muted">
-            Keep onboarding clean, then manage bio, socials, and activity details later
-            from the in-product profile section.
+            Sign in with a real OAuth provider. VoidLAB stores a secure app session and can keep
+            your GitHub token encrypted for repository publishing.
           </p>
         </div>
-        <div className="rounded-2xl border border-sky-200 bg-sky-50 px-3 py-2 text-right shadow-[inset_0_0_0_1px_rgba(96,165,250,0.08)]">
-          <div className="text-xs uppercase tracking-[0.24em] text-sky-700">Profile</div>
-          <div className="display-font text-xl font-semibold text-slate-900">{completion}%</div>
+        <div className="rounded-2xl border border-sky-100 bg-sky-50 px-3 py-2 text-right shadow-[inset_0_0_0_1px_rgba(96,165,250,0.08)]">
+          <div className="text-xs uppercase tracking-[0.24em] text-sky-700">OAuth</div>
+          <div className="display-font text-xl font-semibold text-slate-900">Live</div>
         </div>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <button
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-[0_10px_24px_rgba(148,163,184,0.12)] transition hover:-translate-y-0.5 hover:border-sky-200"
-          disabled={submitting}
-          onClick={() => void handleProviderClick("GitHub")}
-          type="button"
-        >
-          <Github size={16} />
-          GitHub
-        </button>
-        <button
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-[0_10px_24px_rgba(148,163,184,0.12)] transition hover:-translate-y-0.5 hover:border-sky-200"
-          disabled={submitting}
-          onClick={() => void handleProviderClick("Google")}
-          type="button"
-        >
-          <Mail size={16} />
-          Google
-        </button>
-        <button
-          className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-100 bg-white px-4 py-3 text-sm font-medium text-slate-900 shadow-[0_10px_24px_rgba(148,163,184,0.12)] transition hover:-translate-y-0.5 hover:border-sky-200"
-          disabled={submitting}
-          onClick={() => void handleProviderClick("X")}
-          type="button"
-        >
-          <Sparkles size={16} />
-          X
-        </button>
+      <div className="space-y-3">
+        {providerCards.map((provider) => {
+          const Icon = provider.icon;
+
+          return (
+            <a
+              className="flex items-center justify-between rounded-[28px] border border-sky-100 bg-white px-5 py-4 text-left shadow-[0_10px_24px_rgba(148,163,184,0.12)] transition hover:-translate-y-0.5 hover:border-sky-200"
+              href={provider.href}
+              key={provider.label}
+            >
+              <span className="flex min-w-0 items-center gap-4">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl border border-sky-100 bg-sky-50 text-slate-900">
+                  <Icon size={18} />
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-slate-950">{provider.label}</span>
+                  <span className="mt-1 block text-sm leading-6 text-slate-600">
+                    {provider.description}
+                  </span>
+                </span>
+              </span>
+            </a>
+          );
+        })}
       </div>
 
-      {info ? (
-        <div className="mt-4 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-800">
-          {info}
+      {authError ? (
+        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+          {authError}
         </div>
       ) : null}
 
-      <form className="mt-5 space-y-5" onSubmit={(event) => void handleSubmit(event)}>
-        <div className="flex flex-col items-center gap-3 sm:flex-row">
-          <label className="group relative flex h-28 w-28 cursor-pointer items-center justify-center overflow-hidden rounded-[28px] border border-dashed border-sky-200 bg-white transition hover:border-sky-300 hover:bg-sky-50">
-            {form.avatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img alt="Profile preview" className="h-full w-full object-cover" src={form.avatar} />
-            ) : (
-              <div className="text-center">
-                <Camera className="mx-auto text-slate-400 transition group-hover:text-sky-600" size={22} />
-                <div className="mt-2 text-xs uppercase tracking-[0.22em] text-slate-500">
-                  Add photo
-                </div>
-              </div>
-            )}
-            <input
-              accept="image/*"
-              className="absolute inset-0 cursor-pointer opacity-0"
-              onChange={handleAvatar}
-              type="file"
-            />
-          </label>
-
-          <div className="flex-1 rounded-[28px] border border-sky-100 bg-white p-4 text-sm text-slate-600 shadow-[inset_0_0_0_1px_rgba(191,219,254,0.45)]">
-            <div className="font-medium text-slate-900">VoidLAB identity card</div>
-            <p className="mt-2 leading-6 text-slate-600">
-              Start with your name, email, phone, region, and display photo. After entering the
-              product, use the new profile page to add bio, socials, and manage your public card.
-            </p>
-          </div>
+      <div className="mt-6 rounded-[28px] border border-sky-100 bg-white p-5">
+        <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+          <ShieldCheck size={16} />
+          What happens after login
         </div>
-
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Input
-            icon={<User2 size={16} />}
-            label="Full name"
-            onChange={handleField("name")}
-            placeholder="Liam"
-            value={form.name}
-          />
-          <Input
-            icon={<Mail size={16} />}
-            label="Email"
-            onChange={handleField("email")}
-            placeholder="you@example.com"
-            type="email"
-            value={form.email}
-          />
-          <Input
-            icon={<Phone size={16} />}
-            label="Phone number"
-            onChange={handleField("phone")}
-            placeholder="Phone number"
-            value={form.phone}
-          />
-          <Input
-            icon={<Globe2 size={16} />}
-            label="Region"
-            onChange={handleField("region")}
-            placeholder="Kolkata, India"
-            value={form.region}
-          />
+        <div className="mt-3 space-y-2 text-sm leading-7 text-slate-600">
+          <p>1. VoidLAB redirects you to the provider you choose.</p>
+          <p>2. After approval, the backend exchanges the authorization code for tokens.</p>
+          <p>3. Your user record is created or linked, then a secure app session cookie is set.</p>
+          <p>4. If GitHub is connected, you can push code to real repositories from the app.</p>
         </div>
+      </div>
 
-        {error ? (
-          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-            {error}
-          </div>
-        ) : null}
-
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-xs uppercase tracking-[0.24em] text-slate-500">
-            Clean onboarding • profile inside product • polished workflow
-          </div>
-          <Button className="min-w-[200px]" disabled={submitting} type="submit">
-            {submitting ? "Launching" : "Launch VoidLAB"}
-            <ArrowRight size={16} />
-          </Button>
+      {isReady && profile ? (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+          <span>Signed in as {profile.name}. Open your workspace when you’re ready.</span>
+          <a
+            className="inline-flex items-center justify-center gap-2 rounded-2xl bg-sky-400 px-4 py-2.5 text-sm font-medium text-white shadow-[0_14px_32px_rgba(59,130,246,0.22)] transition duration-200 hover:bg-sky-300"
+            href="/editor"
+          >
+            Open editor
+          </a>
         </div>
-      </form>
+      ) : null}
     </section>
   );
 }

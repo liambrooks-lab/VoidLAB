@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useMemo, useState, useEffect } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { apiBaseUrl } from "@/lib/api";
 
 export type UserSocialLinks = {
   github: string;
@@ -13,8 +14,16 @@ export type UserProfile = {
   avatar: string;
   bio: string;
   email: string;
+  githubConnected: boolean;
+  githubLogin: string;
+  id: string;
   name: string;
   phone: string;
+  providers: {
+    github: boolean;
+    google: boolean;
+    x: boolean;
+  };
   region: string;
   socials: UserSocialLinks;
 };
@@ -30,13 +39,15 @@ export type UserActivity = {
 type UserContextValue = {
   activities: UserActivity[];
   isReady: boolean;
+  logout: () => Promise<void>;
   profile: UserProfile | null;
   recordActivity: (activity: Omit<UserActivity, "createdAt" | "id">) => void;
-  saveProfile: (profile: UserProfile) => void;
+  refreshProfile: () => Promise<UserProfile | null>;
+  saveProfile: (profile: Partial<Pick<UserProfile, "bio" | "phone" | "region" | "socials">>) => Promise<UserProfile | null>;
 };
 
-const storageKey = "voidlab-user-profile";
 const activityStorageKey = "voidlab-user-activities";
+const storageLimit = 40;
 
 const emptySocials: UserSocialLinks = {
   github: "",
@@ -46,17 +57,25 @@ const emptySocials: UserSocialLinks = {
 };
 
 const normalizeProfile = (value: Partial<UserProfile> | null | undefined): UserProfile | null => {
-  if (!value?.name || !value.email || !value.phone || !value.region) {
+  if (!value?.id || !value.name) {
     return null;
   }
 
   return {
     avatar: value.avatar ?? "",
     bio: value.bio ?? "",
-    email: value.email,
+    email: value.email ?? "",
+    githubConnected: Boolean(value.githubConnected),
+    githubLogin: value.githubLogin ?? "",
+    id: value.id,
     name: value.name,
-    phone: value.phone,
-    region: value.region,
+    phone: value.phone ?? "",
+    providers: {
+      github: Boolean(value.providers?.github),
+      google: Boolean(value.providers?.google),
+      x: Boolean(value.providers?.x),
+    },
+    region: value.region ?? "Global",
     socials: {
       ...emptySocials,
       ...(value.socials ?? {}),
@@ -64,7 +83,6 @@ const normalizeProfile = (value: Partial<UserProfile> | null | undefined): UserP
   };
 };
 
-const storageLimit = 40;
 const UserContext = createContext<UserContextValue | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
@@ -72,20 +90,35 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const [activities, setActivities] = useState<UserActivity[]>([]);
   const [isReady, setIsReady] = useState(false);
 
-  useEffect(() => {
+  const refreshProfile = async () => {
     try {
-      const rawProfile = window.localStorage.getItem(storageKey);
-      const rawActivities = window.localStorage.getItem(activityStorageKey);
+      const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
+        credentials: "include",
+      });
 
-      if (rawProfile) {
-        setProfile(normalizeProfile(JSON.parse(rawProfile)) as UserProfile | null);
+      if (!response.ok) {
+        setProfile(null);
+        return null;
       }
 
+      const data = await response.json();
+      const nextProfile = normalizeProfile(data.profile);
+      setProfile(nextProfile);
+      return nextProfile;
+    } catch {
+      setProfile(null);
+      return null;
+    }
+  };
+
+  useEffect(() => {
+    try {
+      const rawActivities = window.localStorage.getItem(activityStorageKey);
       if (rawActivities) {
         setActivities(JSON.parse(rawActivities) as UserActivity[]);
       }
     } finally {
-      setIsReady(true);
+      void refreshProfile().finally(() => setIsReady(true));
     }
   }, []);
 
@@ -103,41 +136,40 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const saveProfile = (nextProfile: UserProfile) => {
-    const normalizedProfile = normalizeProfile(nextProfile);
-
-    if (!normalizedProfile) return;
-
-    const activity: Omit<UserActivity, "createdAt" | "id"> = profile
-      ? {
-          detail: "Profile details were refreshed inside VoidLAB.",
-          title: "Profile updated",
-          type: "profile",
-        }
-      : {
-          detail: "The user launched a new VoidLAB workspace session.",
-          title: "Workspace launched",
-          type: "workspace",
-        };
-
-    setProfile(normalizedProfile);
-    window.localStorage.setItem(storageKey, JSON.stringify(normalizedProfile));
-    setActivities((current) => {
-      const nextActivities = [
-        {
-          ...activity,
-          createdAt: new Date().toISOString(),
-          id: `activity-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-        },
-        ...current,
-      ].slice(0, storageLimit);
-      window.localStorage.setItem(activityStorageKey, JSON.stringify(nextActivities));
-      return nextActivities;
+  const saveProfile = async (
+    nextProfile: Partial<Pick<UserProfile, "bio" | "phone" | "region" | "socials">>,
+  ) => {
+    const response = await fetch(`${apiBaseUrl}/api/auth/profile`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+      body: JSON.stringify(nextProfile),
     });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || "VoidLAB could not save your profile.");
+    }
+
+    const normalizedProfile = normalizeProfile(data.profile);
+    setProfile(normalizedProfile);
+
+    return normalizedProfile;
+  };
+
+  const logout = async () => {
+    await fetch(`${apiBaseUrl}/api/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+    });
+    setProfile(null);
   };
 
   const value = useMemo(
-    () => ({ activities, isReady, profile, recordActivity, saveProfile }),
+    () => ({ activities, isReady, logout, profile, recordActivity, refreshProfile, saveProfile }),
     [activities, isReady, profile],
   );
 
