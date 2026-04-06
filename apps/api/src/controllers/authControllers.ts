@@ -456,7 +456,7 @@ const completeOAuth =
             : await fetchXProfile(tokenResponse.accessToken);
 
       const currentSession = readSession(req);
-      const { created, profile } = upsertOAuthUser({
+      const { created, profile } = await upsertOAuthUser({
         accessToken: tokenResponse.accessToken,
         avatar: providerProfile.avatar,
         currentUserId: oauthState.intent === "link" ? currentSession?.userId : undefined,
@@ -489,14 +489,14 @@ const completeOAuth =
     }
   };
 
-export const getCurrentUser = (req: Request, res: Response) => {
+export const getCurrentUser = async (req: Request, res: Response) => {
   const session = readSession(req);
 
   if (!session?.userId) {
     return res.status(401).json({ error: "Not signed in." });
   }
 
-  const profile = getUserProfileById(session.userId);
+  const profile = await getUserProfileById(session.userId);
 
   if (!profile) {
     clearSessionCookie(res);
@@ -506,7 +506,7 @@ export const getCurrentUser = (req: Request, res: Response) => {
   return res.status(200).json({ ok: true, profile });
 };
 
-export const updateCurrentUserProfile = (req: AuthenticatedRequest, res: Response) => {
+export const updateCurrentUserProfile = async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.authUser?.userId;
 
   if (!userId) {
@@ -514,7 +514,7 @@ export const updateCurrentUserProfile = (req: AuthenticatedRequest, res: Respons
   }
 
   const { bio, phone, region, socials } = req.body ?? {};
-  const profile = updateUserProfile(userId, {
+  const profile = await updateUserProfile(userId, {
     bio: typeof bio === "string" ? bio : undefined,
     phone: typeof phone === "string" ? phone : undefined,
     region: typeof region === "string" ? region : undefined,
@@ -549,14 +549,14 @@ export const handleGoogleOAuthCallback = completeOAuth("google");
 export const handleGitHubOAuthCallback = completeOAuth("github");
 export const handleXOAuthCallback = completeOAuth("x");
 
-export const getGitHubConnectionStatus = (req: Request, res: Response) => {
+export const getGitHubConnectionStatus = async (req: Request, res: Response) => {
   const session = readSession(req);
 
   if (!session?.userId) {
     return res.status(401).json({ error: "Not signed in." });
   }
 
-  const githubAccount = getOAuthAccountForUser(session.userId, "github");
+  const githubAccount = await getOAuthAccountForUser(session.userId, "github");
 
   return res.status(200).json({
     ok: true,

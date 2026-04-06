@@ -1,6 +1,5 @@
-import Database from "better-sqlite3";
-import fs from "fs";
-import path from "path";
+import crypto from "crypto";
+import { Pool, type PoolClient, type QueryResultRow } from "pg";
 import { decryptSecret, encryptSecret } from "./crypto";
 
 export type AuthProvider = "github" | "google" | "x";
@@ -29,12 +28,14 @@ export type AppUserProfile = {
 type UserRow = {
   avatar: string | null;
   bio: string | null;
+  created_at: string;
   email: string | null;
   id: string;
   name: string;
   phone: string | null;
   region: string | null;
   socials_json: string | null;
+  updated_at: string;
 };
 
 type OAuthAccountRow = {
@@ -83,15 +84,24 @@ const emptySocials: SocialLinks = {
   x: "",
 };
 
-const dataDir = path.resolve(__dirname, "../../data");
-const databasePath = path.join(dataDir, "voidlab.sqlite");
+const databaseUrl = process.env.DATABASE_URL;
+const useSsl = /^(1|true|require)$/i.test(process.env.DATABASE_SSL ?? "");
+const rejectUnauthorized = !/^(0|false)$/i.test(
+  process.env.DATABASE_SSL_REJECT_UNAUTHORIZED ?? "false",
+);
 
-fs.mkdirSync(dataDir, { recursive: true });
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is required for VoidLAB auth storage.");
+}
 
-const db = new Database(databasePath);
-db.pragma("journal_mode = WAL");
+const pool = new Pool({
+  connectionString: databaseUrl,
+  ssl: useSsl ? { rejectUnauthorized } : undefined,
+});
 
-db.exec(`
+let initPromise: Promise<void> | null = null;
+
+const schemaSql = `
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
     email TEXT UNIQUE,
@@ -101,28 +111,30 @@ db.exec(`
     phone TEXT DEFAULT '',
     region TEXT DEFAULT 'Global',
     socials_json TEXT DEFAULT '{}',
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
 
   CREATE TABLE IF NOT EXISTS oauth_accounts (
     id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     provider TEXT NOT NULL,
     provider_user_id TEXT NOT NULL,
     access_token_encrypted TEXT NOT NULL,
     refresh_token_encrypted TEXT,
     scope TEXT DEFAULT '',
     token_type TEXT DEFAULT '',
-    expires_at INTEGER,
+    expires_at BIGINT,
     username TEXT DEFAULT '',
     profile_url TEXT DEFAULT '',
-    created_at TEXT NOT NULL,
-    updated_at TEXT NOT NULL,
-    UNIQUE(provider, provider_user_id),
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(provider, provider_user_id)
   );
-`);
+
+  CREATE INDEX IF NOT EXISTS idx_oauth_accounts_user_provider
+  ON oauth_accounts(user_id, provider);
+`;
 
 const parseSocials = (value?: string | null): SocialLinks => {
   if (!value) return { ...emptySocials };
@@ -137,71 +149,35 @@ const parseSocials = (value?: string | null): SocialLinks => {
   }
 };
 
-const getAccountsForUser = db.prepare(
-  "SELECT * FROM oauth_accounts WHERE user_id = ?",
-);
+const mapUserRow = <T extends QueryResultRow>(row: T): UserRow => ({
+  avatar: (row.avatar as string | null) ?? "",
+  bio: (row.bio as string | null) ?? "",
+  created_at: String(row.created_at ?? new Date().toISOString()),
+  email: (row.email as string | null) ?? null,
+  id: String(row.id),
+  name: String(row.name),
+  phone: (row.phone as string | null) ?? "",
+  region: (row.region as string | null) ?? "Global",
+  socials_json: (row.socials_json as string | null) ?? "{}",
+  updated_at: String(row.updated_at ?? new Date().toISOString()),
+});
 
-const getUserRowById = db.prepare(
-  "SELECT * FROM users WHERE id = ?",
-);
-
-const getUserRowByEmail = db.prepare(
-  "SELECT * FROM users WHERE email = ?",
-);
-
-const getOAuthAccountByProvider = db.prepare(
-  "SELECT * FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?",
-);
-
-const getOAuthAccountByUserAndProvider = db.prepare(
-  "SELECT * FROM oauth_accounts WHERE user_id = ? AND provider = ?",
-);
-
-const insertUserStatement = db.prepare(`
-  INSERT INTO users (id, email, name, avatar, bio, phone, region, socials_json, created_at, updated_at)
-  VALUES (@id, @email, @name, @avatar, @bio, @phone, @region, @socials_json, @created_at, @updated_at)
-`);
-
-const updateUserIdentityStatement = db.prepare(`
-  UPDATE users
-  SET email = @email,
-      name = @name,
-      avatar = @avatar,
-      socials_json = @socials_json,
-      updated_at = @updated_at
-  WHERE id = @id
-`);
-
-const updateUserProfileStatement = db.prepare(`
-  UPDATE users
-  SET bio = @bio,
-      phone = @phone,
-      region = @region,
-      socials_json = @socials_json,
-      updated_at = @updated_at
-  WHERE id = @id
-`);
-
-const upsertOAuthAccountStatement = db.prepare(`
-  INSERT INTO oauth_accounts (
-    id, user_id, provider, provider_user_id, access_token_encrypted, refresh_token_encrypted,
-    scope, token_type, expires_at, username, profile_url, created_at, updated_at
-  ) VALUES (
-    @id, @user_id, @provider, @provider_user_id, @access_token_encrypted, @refresh_token_encrypted,
-    @scope, @token_type, @expires_at, @username, @profile_url, @created_at, @updated_at
-  )
-  ON CONFLICT(provider, provider_user_id)
-  DO UPDATE SET
-    user_id = excluded.user_id,
-    access_token_encrypted = excluded.access_token_encrypted,
-    refresh_token_encrypted = excluded.refresh_token_encrypted,
-    scope = excluded.scope,
-    token_type = excluded.token_type,
-    expires_at = excluded.expires_at,
-    username = excluded.username,
-    profile_url = excluded.profile_url,
-    updated_at = excluded.updated_at
-`);
+const mapOAuthAccountRow = <T extends QueryResultRow>(row: T): OAuthAccountRow => ({
+  access_token_encrypted: String(row.access_token_encrypted),
+  created_at: String(row.created_at ?? new Date().toISOString()),
+  expires_at:
+    row.expires_at === null || row.expires_at === undefined ? null : Number(row.expires_at),
+  id: String(row.id),
+  profile_url: (row.profile_url as string | null) ?? "",
+  provider: row.provider as AuthProvider,
+  provider_user_id: String(row.provider_user_id),
+  refresh_token_encrypted: (row.refresh_token_encrypted as string | null) ?? null,
+  scope: (row.scope as string | null) ?? "",
+  token_type: (row.token_type as string | null) ?? "",
+  updated_at: String(row.updated_at ?? new Date().toISOString()),
+  user_id: String(row.user_id),
+  username: (row.username as string | null) ?? "",
+});
 
 const serializeProfile = (user: UserRow, accounts: OAuthAccountRow[]): AppUserProfile => {
   const socials = parseSocials(user.socials_json);
@@ -227,16 +203,11 @@ const serializeProfile = (user: UserRow, accounts: OAuthAccountRow[]): AppUserPr
   };
 };
 
-const loadProfileByUserId = (userId: string) => {
-  const user = getUserRowById.get(userId) as UserRow | undefined;
-
-  if (!user) return null;
-
-  const accounts = getAccountsForUser.all(userId) as OAuthAccountRow[];
-  return serializeProfile(user, accounts);
-};
-
-const applyProviderLinks = (provider: AuthProvider, profileUrl: string | undefined, socials: SocialLinks) => {
+const applyProviderLinks = (
+  provider: AuthProvider,
+  profileUrl: string | undefined,
+  socials: SocialLinks,
+) => {
   if (!profileUrl) return socials;
 
   if (provider === "github" && !socials.github) {
@@ -250,111 +221,232 @@ const applyProviderLinks = (provider: AuthProvider, profileUrl: string | undefin
   return socials;
 };
 
-export const upsertOAuthUser = (input: UpsertOAuthUserInput) => {
-  const existingAccount = getOAuthAccountByProvider.get(
-    input.provider,
-    input.providerUserId,
-  ) as OAuthAccountRow | undefined;
-
-  if (
-    input.currentUserId &&
-    existingAccount &&
-    existingAccount.user_id !== input.currentUserId
-  ) {
-    throw new Error(`This ${input.provider} account is already linked to another VoidLAB user.`);
-  }
-
-  const userFromEmail =
-    !existingAccount && input.email
-      ? (getUserRowByEmail.get(input.email) as UserRow | undefined)
-      : undefined;
-
-  const userId =
-    input.currentUserId ||
-    existingAccount?.user_id ||
-    userFromEmail?.id ||
-    `user-${crypto.randomUUID()}`;
-
-  const existingUser = (getUserRowById.get(userId) as UserRow | undefined) ?? userFromEmail;
-  const now = new Date().toISOString();
-  const currentSocials = parseSocials(existingUser?.socials_json);
-  const nextSocials = applyProviderLinks(input.provider, input.profileUrl, currentSocials);
-
-  if (!existingUser) {
-    insertUserStatement.run({
-      id: userId,
-      email: input.email ?? null,
-      name: input.name,
-      avatar: input.avatar,
-      bio: "",
-      phone: "",
-      region: "Global",
-      socials_json: JSON.stringify(nextSocials),
-      created_at: now,
-      updated_at: now,
-    });
-  } else {
-    updateUserIdentityStatement.run({
-      id: userId,
-      email: input.email ?? existingUser.email ?? null,
-      name: input.name || existingUser.name,
-      avatar: input.avatar || existingUser.avatar || "",
-      socials_json: JSON.stringify(nextSocials),
-      updated_at: now,
-    });
-  }
-
-  upsertOAuthAccountStatement.run({
-    id: existingAccount?.id ?? `oauth-${crypto.randomUUID()}`,
-    user_id: userId,
-    provider: input.provider,
-    provider_user_id: input.providerUserId,
-    access_token_encrypted: encryptSecret(input.accessToken),
-    refresh_token_encrypted: input.refreshToken ? encryptSecret(input.refreshToken) : null,
-    scope: input.scope ?? "",
-    token_type: input.tokenType ?? "",
-    expires_at: input.expiresAt ?? null,
-    username: input.username ?? "",
-    profile_url: input.profileUrl ?? "",
-    created_at: existingAccount?.created_at ?? now,
-    updated_at: now,
-  });
-
-  return {
-    created: !existingUser,
-    profile: loadProfileByUserId(userId)!,
-  };
+const getUserById = async (client: PoolClient, userId: string) => {
+  const result = await client.query("SELECT * FROM users WHERE id = $1", [userId]);
+  return result.rows[0] ? mapUserRow(result.rows[0]) : null;
 };
 
-export const getUserProfileById = (userId: string) => loadProfileByUserId(userId);
-
-export const updateUserProfile = (userId: string, patch: UserProfilePatch) => {
-  const user = getUserRowById.get(userId) as UserRow | undefined;
-
-  if (!user) {
-    return null;
-  }
-
-  const currentSocials = parseSocials(user.socials_json);
-  const nextSocials = {
-    ...currentSocials,
-    ...(patch.socials ?? {}),
-  };
-
-  updateUserProfileStatement.run({
-    id: userId,
-    bio: patch.bio ?? user.bio ?? "",
-    phone: patch.phone ?? user.phone ?? "",
-    region: patch.region ?? user.region ?? "Global",
-    socials_json: JSON.stringify(nextSocials),
-    updated_at: new Date().toISOString(),
-  });
-
-  return loadProfileByUserId(userId);
+const getUserByEmail = async (client: PoolClient, email: string) => {
+  const result = await client.query("SELECT * FROM users WHERE email = $1", [email]);
+  return result.rows[0] ? mapUserRow(result.rows[0]) : null;
 };
 
-export const getOAuthAccountForUser = (userId: string, provider: AuthProvider) => {
-  const account = getOAuthAccountByUserAndProvider.get(userId, provider) as OAuthAccountRow | undefined;
+const getOAuthAccountByProvider = async (
+  client: PoolClient,
+  provider: AuthProvider,
+  providerUserId: string,
+) => {
+  const result = await client.query(
+    "SELECT * FROM oauth_accounts WHERE provider = $1 AND provider_user_id = $2",
+    [provider, providerUserId],
+  );
+  return result.rows[0] ? mapOAuthAccountRow(result.rows[0]) : null;
+};
+
+const getAccountsForUser = async (client: PoolClient, userId: string) => {
+  const result = await client.query("SELECT * FROM oauth_accounts WHERE user_id = $1", [userId]);
+  return result.rows.map(mapOAuthAccountRow);
+};
+
+const loadProfileByUserId = async (client: PoolClient, userId: string) => {
+  const user = await getUserById(client, userId);
+
+  if (!user) return null;
+
+  const accounts = await getAccountsForUser(client, userId);
+  return serializeProfile(user, accounts);
+};
+
+export const initializeDatabase = async () => {
+  if (!initPromise) {
+    initPromise = (async () => {
+      await pool.query(schemaSql);
+    })();
+  }
+
+  return initPromise;
+};
+
+export const upsertOAuthUser = async (input: UpsertOAuthUserInput) => {
+  await initializeDatabase();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const existingAccount = await getOAuthAccountByProvider(
+      client,
+      input.provider,
+      input.providerUserId,
+    );
+
+    if (
+      input.currentUserId &&
+      existingAccount &&
+      existingAccount.user_id !== input.currentUserId
+    ) {
+      throw new Error(`This ${input.provider} account is already linked to another VoidLAB user.`);
+    }
+
+    const userFromEmail =
+      !existingAccount && input.email ? await getUserByEmail(client, input.email) : null;
+
+    const userId =
+      input.currentUserId ||
+      existingAccount?.user_id ||
+      userFromEmail?.id ||
+      `user-${crypto.randomUUID()}`;
+
+    const existingUser = (await getUserById(client, userId)) ?? userFromEmail;
+    const now = new Date().toISOString();
+    const currentSocials = parseSocials(existingUser?.socials_json);
+    const nextSocials = applyProviderLinks(input.provider, input.profileUrl, currentSocials);
+
+    if (!existingUser) {
+      await client.query(
+        `INSERT INTO users
+          (id, email, name, avatar, bio, phone, region, socials_json, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          userId,
+          input.email ?? null,
+          input.name,
+          input.avatar,
+          "",
+          "",
+          "Global",
+          JSON.stringify(nextSocials),
+          now,
+          now,
+        ],
+      );
+    } else {
+      await client.query(
+        `UPDATE users
+         SET email = $2,
+             name = $3,
+             avatar = $4,
+             socials_json = $5,
+             updated_at = $6
+         WHERE id = $1`,
+        [
+          userId,
+          input.email ?? existingUser.email ?? null,
+          input.name || existingUser.name,
+          input.avatar || existingUser.avatar || "",
+          JSON.stringify(nextSocials),
+          now,
+        ],
+      );
+    }
+
+    await client.query(
+      `INSERT INTO oauth_accounts
+        (id, user_id, provider, provider_user_id, access_token_encrypted, refresh_token_encrypted,
+         scope, token_type, expires_at, username, profile_url, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+       ON CONFLICT (provider, provider_user_id)
+       DO UPDATE SET
+         user_id = EXCLUDED.user_id,
+         access_token_encrypted = EXCLUDED.access_token_encrypted,
+         refresh_token_encrypted = EXCLUDED.refresh_token_encrypted,
+         scope = EXCLUDED.scope,
+         token_type = EXCLUDED.token_type,
+         expires_at = EXCLUDED.expires_at,
+         username = EXCLUDED.username,
+         profile_url = EXCLUDED.profile_url,
+         updated_at = EXCLUDED.updated_at`,
+      [
+        existingAccount?.id ?? `oauth-${crypto.randomUUID()}`,
+        userId,
+        input.provider,
+        input.providerUserId,
+        encryptSecret(input.accessToken),
+        input.refreshToken ? encryptSecret(input.refreshToken) : null,
+        input.scope ?? "",
+        input.tokenType ?? "",
+        input.expiresAt ?? null,
+        input.username ?? "",
+        input.profileUrl ?? "",
+        existingAccount?.created_at ?? now,
+        now,
+      ],
+    );
+
+    const profile = await loadProfileByUserId(client, userId);
+    await client.query("COMMIT");
+
+    return {
+      created: !existingUser,
+      profile: profile!,
+    };
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+};
+
+export const getUserProfileById = async (userId: string) => {
+  await initializeDatabase();
+  const client = await pool.connect();
+
+  try {
+    return await loadProfileByUserId(client, userId);
+  } finally {
+    client.release();
+  }
+};
+
+export const updateUserProfile = async (userId: string, patch: UserProfilePatch) => {
+  await initializeDatabase();
+  const client = await pool.connect();
+
+  try {
+    const user = await getUserById(client, userId);
+
+    if (!user) {
+      return null;
+    }
+
+    const currentSocials = parseSocials(user.socials_json);
+    const nextSocials = {
+      ...currentSocials,
+      ...(patch.socials ?? {}),
+    };
+
+    await client.query(
+      `UPDATE users
+       SET bio = $2,
+           phone = $3,
+           region = $4,
+           socials_json = $5,
+           updated_at = $6
+       WHERE id = $1`,
+      [
+        userId,
+        patch.bio ?? user.bio ?? "",
+        patch.phone ?? user.phone ?? "",
+        patch.region ?? user.region ?? "Global",
+        JSON.stringify(nextSocials),
+        new Date().toISOString(),
+      ],
+    );
+
+    return await loadProfileByUserId(client, userId);
+  } finally {
+    client.release();
+  }
+};
+
+export const getOAuthAccountForUser = async (userId: string, provider: AuthProvider) => {
+  await initializeDatabase();
+  const result = await pool.query(
+    "SELECT * FROM oauth_accounts WHERE user_id = $1 AND provider = $2",
+    [userId, provider],
+  );
+  const account = result.rows[0] ? mapOAuthAccountRow(result.rows[0]) : null;
 
   if (!account) return null;
 

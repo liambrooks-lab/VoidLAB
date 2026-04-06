@@ -8,6 +8,7 @@ import collaborationRoutes from "./routes/collaboration.routes";
 import executeRoutes from "./routes/execute.routes";
 import { requireAuth } from "./middleware/auth";
 import { pushToGitHub } from "./controllers/githubController";
+import { initializeDatabase } from "./lib/database";
 
 dotenv.config();
 
@@ -36,6 +37,15 @@ app.use("/api/collaboration", collaborationRoutes);
 app.use("/api/execute", executeRoutes);
 app.post("/api/push-to-github", requireAuth, pushToGitHub);
 
-app.listen(port, () => {
-  console.log(`VoidLAB API listening on http://localhost:${port}`);
+const startServer = async () => {
+  await initializeDatabase();
+
+  app.listen(port, () => {
+    console.log(`VoidLAB API listening on http://localhost:${port}`);
+  });
+};
+
+void startServer().catch((error) => {
+  console.error("VoidLAB API failed to start", error);
+  process.exit(1);
 });

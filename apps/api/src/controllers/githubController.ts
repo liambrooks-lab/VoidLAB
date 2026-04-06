@@ -114,8 +114,8 @@ export const pushToGitHub = async (req: AuthenticatedRequest, res: Response) => 
     return res.status(401).json({ error: "Authentication is required." });
   }
 
-  const githubAccount = getOAuthAccountForUser(userId, "github");
-  const profile = getUserProfileById(userId);
+  const githubAccount = await getOAuthAccountForUser(userId, "github");
+  const profile = await getUserProfileById(userId);
 
   if (!profile || !githubAccount?.accessToken) {
     return res.status(403).json({
