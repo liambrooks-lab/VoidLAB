@@ -5,6 +5,7 @@ import GitHubPanel from "@/components/editor/GitHubPanel";
 import { useUser } from "@/context/UserContext";
 import { buildOAuthStartUrl } from "@/lib/auth";
 import { apiBaseUrl } from "@/lib/api";
+import { buildAuthHeaders, getStoredSessionToken } from "@/lib/session";
 import {
   defaultGitState,
   persistWorkspace,
@@ -108,6 +109,7 @@ export default function GitHubWorkspacePanel() {
 
   const handleConnectGitHub = () => {
     window.location.href = buildOAuthStartUrl("github", {
+      appToken: getStoredSessionToken(),
       intent: "link",
       returnTo: "/editor/github",
     });
@@ -142,6 +144,7 @@ export default function GitHubWorkspacePanel() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          ...buildAuthHeaders(),
         },
         credentials: "include",
         body: JSON.stringify({

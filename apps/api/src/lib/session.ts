@@ -9,6 +9,7 @@ export type SessionPayload = {
 
 type OAuthStatePayload = {
   intent: OAuthIntent;
+  linkUserId?: string;
   provider: "github" | "google" | "x";
   returnTo: string;
   verifier?: string;
@@ -34,6 +35,16 @@ export const readSession = (req: Request) => {
     req.cookies?.[sessionCookieName] ||
     req.headers.authorization?.replace(/^Bearer\s+/i, "");
 
+  if (!token) return null;
+
+  try {
+    return jwt.verify(token, jwtSecret) as SessionPayload;
+  } catch {
+    return null;
+  }
+};
+
+export const verifySessionToken = (token?: string | null) => {
   if (!token) return null;
 
   try {

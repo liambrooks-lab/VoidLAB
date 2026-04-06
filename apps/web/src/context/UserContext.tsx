@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { apiBaseUrl } from "@/lib/api";
+import { buildAuthHeaders, clearStoredSessionToken, storeSessionToken } from "@/lib/session";
 
 export type UserSocialLinks = {
   github: string;
@@ -92,7 +93,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const refreshProfile = async () => {
     try {
+      const authHeaders = buildAuthHeaders();
       const response = await fetch(`${apiBaseUrl}/api/auth/me`, {
+        headers: authHeaders,
         credentials: "include",
       });
 
@@ -113,6 +116,16 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
+      const currentUrl = new URL(window.location.href);
+      const sessionToken = currentUrl.searchParams.get("sessionToken");
+
+      if (sessionToken) {
+        storeSessionToken(sessionToken);
+        currentUrl.searchParams.delete("sessionToken");
+        currentUrl.searchParams.delete("auth");
+        window.history.replaceState({}, "", currentUrl.toString());
+      }
+
       const rawActivities = window.localStorage.getItem(activityStorageKey);
       if (rawActivities) {
         setActivities(JSON.parse(rawActivities) as UserActivity[]);
@@ -143,6 +156,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
+        ...buildAuthHeaders(),
       },
       credentials: "include",
       body: JSON.stringify(nextProfile),
@@ -163,8 +177,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     await fetch(`${apiBaseUrl}/api/auth/logout`, {
       method: "POST",
+      headers: buildAuthHeaders(),
       credentials: "include",
     });
+    clearStoredSessionToken();
     setProfile(null);
   };
 

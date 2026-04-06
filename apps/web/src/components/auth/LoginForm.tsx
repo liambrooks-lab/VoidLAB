@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useUser } from "@/context/UserContext";
 import { buildOAuthStartUrl } from "@/lib/auth";
 import { apiBaseUrl } from "@/lib/api";
+import { storeSessionToken } from "@/lib/session";
 
 const providerCards = [
   {
@@ -86,6 +87,10 @@ export default function LoginForm({ authError = "" }: LoginFormProps) {
 
       if (!response.ok) {
         throw new Error(data.error || "VoidLAB could not enter your workspace.");
+      }
+
+      if (data.token) {
+        storeSessionToken(String(data.token));
       }
 
       const profile = await refreshProfile();

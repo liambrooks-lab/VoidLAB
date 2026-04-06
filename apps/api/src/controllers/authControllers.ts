@@ -13,6 +13,7 @@ import { toCodeChallenge } from "../lib/crypto";
 import {
   clearOAuthStateCookie,
   clearSessionCookie,
+  createSessionToken,
   createOAuthStateToken,
   getWebAppUrl,
   readOAuthState,
@@ -20,6 +21,7 @@ import {
   sanitizeReturnTo,
   setOAuthStateCookie,
   setSessionCookie,
+  verifySessionToken,
 } from "../lib/session";
 import type { AuthenticatedRequest } from "../middleware/auth";
 
@@ -150,9 +152,12 @@ const redirectWithError = (res: Response, returnTo: string, message: string) => 
   return res.redirect(url.toString());
 };
 
-const redirectWithSuccess = (res: Response, returnTo: string) => {
+const redirectWithSuccess = (res: Response, returnTo: string, token?: string) => {
   const url = new URL(returnTo, getWebAppUrl());
   url.searchParams.set("auth", "success");
+  if (token) {
+    url.searchParams.set("sessionToken", token);
+  }
   return res.redirect(url.toString());
 };
 
@@ -168,8 +173,19 @@ const startOAuth = (provider: AuthProvider) => (req: AuthenticatedRequest, res: 
   const intent = req.query.intent === "link" ? "link" : "login";
   const returnTo = sanitizeReturnTo(typeof req.query.returnTo === "string" ? req.query.returnTo : undefined);
   const verifier = provider === "x" ? crypto.randomBytes(48).toString("base64url") : undefined;
+  const currentSession =
+    readSession(req) ||
+    verifySessionToken(typeof req.query.appToken === "string" ? req.query.appToken : undefined);
+
+  if (intent === "link" && !currentSession?.userId) {
+    return res.status(401).json({
+      error: "Sign in to VoidLAB before linking another provider.",
+    });
+  }
+
   const stateToken = createOAuthStateToken({
     intent,
+    linkUserId: currentSession?.userId,
     provider,
     returnTo,
     verifier,
@@ -460,7 +476,7 @@ const completeOAuth =
       const { created, profile } = await upsertOAuthUser({
         accessToken: tokenResponse.accessToken,
         avatar: providerProfile.avatar,
-        currentUserId: oauthState.intent === "link" ? currentSession?.userId : undefined,
+        currentUserId: oauthState.intent === "link" ? oauthState.linkUserId : undefined,
         email: providerProfile.email,
         expiresAt: tokenResponse.expiresAt,
         name: providerProfile.name,
@@ -473,7 +489,9 @@ const completeOAuth =
         username: providerProfile.username,
       });
 
-      setSessionCookie(res, { userId: profile.id });
+      const appSession = { userId: profile.id };
+      setSessionCookie(res, appSession);
+      const token = createSessionToken(appSession);
 
       if (created && profile.email) {
         void sendWelcomeEmail({
@@ -483,7 +501,7 @@ const completeOAuth =
         }).catch(() => undefined);
       }
 
-      return redirectWithSuccess(res, oauthState.returnTo);
+      return redirectWithSuccess(res, oauthState.returnTo, token);
     } catch (error) {
       const message = error instanceof Error ? error.message : "OAuth sign-in failed.";
       return redirectWithError(res, oauthState.returnTo, message);
@@ -538,7 +556,8 @@ export const manualLogin = async (req: Request, res: Response) => {
       return res.status(500).json({ error: "VoidLAB could not create your session." });
     }
 
-    setSessionCookie(res, { userId: profile.id });
+    const appSession = { userId: profile.id };
+    setSessionCookie(res, appSession);
 
     if (created && profile.email) {
       void sendWelcomeEmail({
@@ -551,6 +570,7 @@ export const manualLogin = async (req: Request, res: Response) => {
     return res.status(200).json({
       ok: true,
       profile,
+      token: createSessionToken(appSession),
     });
   } catch (error) {
     return res.status(500).json({
