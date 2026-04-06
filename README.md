@@ -343,4 +343,4 @@ VoidLAB is built as a strong production-style MVP with:
 
 Rudranarayan Jena
 
-GitHub: liambrooks-lab
+GitHub: <a href ="https://github.com/liambrooks-lab/VoidLAB">liambrooks-lab</a>
