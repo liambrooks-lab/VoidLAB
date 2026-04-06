@@ -40,6 +40,7 @@ type GitHubPanelProps = {
   onCloseModal: () => void;
   onConnectGitHub: () => void;
   onCopy: () => void;
+  onFieldChange: (field: keyof GitHubState, value: string) => void;
   onOpenModal: () => void;
   onPush: () => void;
   onPushFieldChange: (field: keyof PushFormState, value: string) => void;
@@ -63,6 +64,7 @@ export default function GitHubPanel({
   onCloseModal,
   onConnectGitHub,
   onCopy,
+  onFieldChange,
   onOpenModal,
   onPush,
   onPushFieldChange,
@@ -123,6 +125,48 @@ export default function GitHubPanel({
             without creating a second account.
           </div>
         ) : null}
+
+        <div className="mt-4 grid gap-3">
+          <label className="block">
+            <span className="mb-2 block text-sm text-slate-300">Repository URL</span>
+            <input
+              className="w-full rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-300"
+              onChange={(event) => onFieldChange("repoUrl", event.target.value)}
+              placeholder="https://github.com/username/voidlab.git"
+              value={gitState.repoUrl}
+            />
+          </label>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-2 block text-sm text-slate-300">Branch</span>
+              <div className="relative">
+                <GitBranch className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                <input
+                  className="w-full rounded-2xl border border-white/10 bg-white/5 py-3 pl-11 pr-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-300"
+                  onChange={(event) => onFieldChange("branch", event.target.value)}
+                  placeholder="main"
+                  value={gitState.branch}
+                />
+              </div>
+            </label>
+
+            <label className="block">
+              <span className="mb-2 block text-sm text-slate-300">Visibility</span>
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                <select
+                  className="w-full rounded-2xl border border-white/10 bg-slate-900 py-3 pl-11 pr-4 text-sm text-white outline-none focus:border-sky-300"
+                  onChange={(event) => onFieldChange("visibility", event.target.value)}
+                  value={gitState.visibility}
+                >
+                  <option value="public">Public</option>
+                  <option value="private">Private</option>
+                </select>
+              </div>
+            </label>
+          </div>
+        </div>
 
         {status ? (
           <div className="mt-4 rounded-2xl border border-emerald-300/30 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">

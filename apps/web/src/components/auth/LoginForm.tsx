@@ -93,14 +93,7 @@ export default function LoginForm({ authError = "" }: LoginFormProps) {
         storeSessionToken(String(data.token));
       }
 
-      const profile = await refreshProfile();
-
-      if (!profile) {
-        throw new Error(
-          "Login worked on the server, but your browser blocked the session cookie. Please refresh after redeploying the latest API.",
-        );
-      }
-
+      await refreshProfile();
       window.location.href = "/editor";
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : "VoidLAB could not enter your workspace.");

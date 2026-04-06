@@ -107,6 +107,13 @@ export default function GitHubWorkspacePanel() {
     }));
   };
 
+  const handleFieldChange = (field: keyof GitHubState, value: string) => {
+    persistGitState({
+      ...gitState,
+      [field]: value,
+    });
+  };
+
   const handleConnectGitHub = () => {
     window.location.href = buildOAuthStartUrl("github", {
       appToken: getStoredSessionToken(),
@@ -122,7 +129,10 @@ export default function GitHubWorkspacePanel() {
     setPushForm((current) => ({
       ...current,
       branch: gitState.branch || "main",
-      repository: current.repository || getRepoNameFromUrl(gitState.repoUrl),
+      repository:
+        current.repository ||
+        getRepoNameFromUrl(gitState.repoUrl) ||
+        (profile?.githubLogin ? `${profile.githubLogin}/voidlab-demo` : ""),
       visibility: gitState.visibility,
     }));
     setModalOpen(true);
@@ -201,6 +211,7 @@ export default function GitHubWorkspacePanel() {
       onCloseModal={() => setModalOpen(false)}
       onConnectGitHub={handleConnectGitHub}
       onCopy={() => void handleCopy()}
+      onFieldChange={handleFieldChange}
       onOpenModal={handleOpenModal}
       onPush={() => void handlePush()}
       onPushFieldChange={handlePushFieldChange}
