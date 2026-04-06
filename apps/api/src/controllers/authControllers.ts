@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import crypto from "crypto";
 import {
+  createOrUpdateManualUser,
   getOAuthAccountForUser,
   getUserProfileById,
   type AuthProvider,
@@ -504,6 +505,58 @@ export const getCurrentUser = async (req: Request, res: Response) => {
   }
 
   return res.status(200).json({ ok: true, profile });
+};
+
+export const manualLogin = async (req: Request, res: Response) => {
+  const { avatar, email, name, phone, region } = req.body ?? {};
+
+  if (
+    typeof email !== "string" ||
+    typeof name !== "string" ||
+    typeof phone !== "string" ||
+    typeof region !== "string" ||
+    !email.trim() ||
+    !name.trim() ||
+    !phone.trim() ||
+    !region.trim()
+  ) {
+    return res.status(400).json({
+      error: "Name, email, phone, and region are required.",
+    });
+  }
+
+  try {
+    const { created, profile } = await createOrUpdateManualUser({
+      avatar: typeof avatar === "string" ? avatar : "",
+      email: email.trim().toLowerCase(),
+      name: name.trim(),
+      phone: phone.trim(),
+      region: region.trim(),
+    });
+
+    if (!profile) {
+      return res.status(500).json({ error: "VoidLAB could not create your session." });
+    }
+
+    setSessionCookie(res, { userId: profile.id });
+
+    if (created && profile.email) {
+      void sendWelcomeEmail({
+        email: profile.email,
+        name: profile.name,
+        region: profile.region || "Global",
+      }).catch(() => undefined);
+    }
+
+    return res.status(200).json({
+      ok: true,
+      profile,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      error: error instanceof Error ? error.message : "VoidLAB could not sign you in.",
+    });
+  }
 };
 
 export const updateCurrentUserProfile = async (req: AuthenticatedRequest, res: Response) => {

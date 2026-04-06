@@ -9,12 +9,14 @@ import {
   handleGoogleOAuthCallback,
   handleXOAuthCallback,
   logout,
+  manualLogin,
   updateCurrentUserProfile,
 } from "../controllers/authControllers";
 import { requireAuth } from "../middleware/auth";
 
 const router = Router();
 
+router.post("/manual-login", manualLogin);
 router.get("/google", beginGoogleOAuth);
 router.get("/google/callback", handleGoogleOAuthCallback);
 router.get("/github", beginGitHubOAuth);

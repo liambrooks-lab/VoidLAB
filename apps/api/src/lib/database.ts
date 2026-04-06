@@ -77,6 +77,14 @@ type UserProfilePatch = {
   socials?: Partial<SocialLinks>;
 };
 
+type ManualUserInput = {
+  avatar?: string;
+  email: string;
+  name: string;
+  phone: string;
+  region: string;
+};
+
 const emptySocials: SocialLinks = {
   github: "",
   instagram: "",
@@ -383,6 +391,68 @@ export const upsertOAuthUser = async (input: UpsertOAuthUserInput) => {
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
+  } finally {
+    client.release();
+  }
+};
+
+export const createOrUpdateManualUser = async (input: ManualUserInput) => {
+  await initializeDatabase();
+  const client = await pool.connect();
+
+  try {
+    const existingUser = await getUserByEmail(client, input.email);
+    const now = new Date().toISOString();
+
+    if (!existingUser) {
+      const userId = `user-${crypto.randomUUID()}`;
+
+      await client.query(
+        `INSERT INTO users
+          (id, email, name, avatar, bio, phone, region, socials_json, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+        [
+          userId,
+          input.email,
+          input.name,
+          input.avatar ?? "",
+          "",
+          input.phone,
+          input.region,
+          JSON.stringify(emptySocials),
+          now,
+          now,
+        ],
+      );
+
+      return {
+        created: true,
+        profile: await loadProfileByUserId(client, userId),
+      };
+    }
+
+    await client.query(
+      `UPDATE users
+       SET name = $2,
+           avatar = CASE WHEN COALESCE($3, '') <> '' THEN $3 ELSE avatar END,
+           phone = $4,
+           region = $5,
+           updated_at = $6
+       WHERE id = $1`,
+      [
+        existingUser.id,
+        input.name,
+        input.avatar ?? "",
+        input.phone,
+        input.region,
+        now,
+      ],
+    );
+
+    return {
+      created: false,
+      profile: await loadProfileByUserId(client, existingUser.id),
+    };
   } finally {
     client.release();
   }
