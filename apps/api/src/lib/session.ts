@@ -19,10 +19,11 @@ const oauthCookieName = "voidlab_oauth";
 const jwtSecret = process.env.JWT_SECRET || "voidlab-dev-jwt-secret";
 
 const isProduction = process.env.NODE_ENV === "production";
+const sameSitePolicy: "lax" | "none" = isProduction ? "none" : "lax";
 
 const cookieOptions = {
   httpOnly: true,
-  sameSite: "lax" as const,
+  sameSite: sameSitePolicy,
   secure: isProduction,
 };
 
