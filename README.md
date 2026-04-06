@@ -336,3 +336,11 @@ VoidLAB is built as a strong production-style MVP with:
 - real auth options
 - GitHub publish flow
 - live deployment links
+
+- ---
+
+## Author
+
+Rudranarayan Jena
+
+GitHub: liambrooks-lab
