@@ -5,8 +5,8 @@ const judge0ApiUrl = process.env.JUDGE0_API_URL ?? "https://ce.judge0.com";
 const C_PLUS_PLUS_LANGUAGE_ID = 105;
 const JAVASCRIPT_LANGUAGE_ID = 102;
 const TYPESCRIPT_LANGUAGE_ID = 101;
-const cpuTimeLimitSeconds = 15;
-const wallTimeLimitSeconds = 45;
+const cpuTimeLimitSeconds = 10;
+const wallTimeLimitSeconds = 30;
 const memoryLimitKb = 786432;
 
 const encode = (value: string) => Buffer.from(value, "utf8").toString("base64");
