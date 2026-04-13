@@ -20,6 +20,8 @@ export type ExecutionDetails = {
 };
 
 const delay = (value: number) => new Promise((resolve) => setTimeout(resolve, value));
+const pollDelayMs = 1000;
+const maxAttempts = 90;
 
 export const useCompiler = () => {
   const [execution, setExecution] = useState<ExecutionDetails | null>(null);
@@ -51,8 +53,6 @@ export const useCompiler = () => {
         return { ok: false };
       }
 
-      const maxAttempts = 40;
-
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
         const statusResponse = await fetch(`${apiBaseUrl}/api/execute/${createData.token}`);
         const statusData = await statusResponse.json();
@@ -69,10 +69,12 @@ export const useCompiler = () => {
           return { ok: Boolean(nextExecution.status?.successful), result: nextExecution };
         }
 
-        await delay(700);
+        await delay(pollDelayMs);
       }
 
-      setError("Execution is taking too long. Please run again or simplify the program input.");
+      setError(
+        "Execution is still running longer than expected. Complex programs now get more time, but this one still exceeded the current waiting window.",
+      );
       return { ok: false };
     } catch {
       setError("VoidLAB could not reach the execution service.");

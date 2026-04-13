@@ -30,15 +30,17 @@ function OutputSection({ label, tone = "default", value }: SectionProps) {
 
   const classes =
     tone === "danger"
-      ? "border-rose-200 bg-rose-50 text-rose-900"
+      ? "border-rose-500/30 bg-black text-rose-100"
       : tone === "success"
-        ? "border-emerald-200 bg-emerald-50 text-emerald-900"
-        : "border-slate-200 bg-slate-50 text-slate-900";
+        ? "border-emerald-500/30 bg-black text-emerald-100"
+        : "border-white/15 bg-black text-zinc-100";
 
   return (
-    <div className={`rounded-[22px] border p-4 ${classes}`}>
-      <div className="mb-2 text-xs uppercase tracking-[0.2em]">{label}</div>
-      <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-7">{value}</pre>
+    <div className={`rounded-[24px] border p-5 shadow-[0_18px_60px_rgba(0,0,0,0.45)] ${classes}`}>
+      <div className="mb-3 text-xs uppercase tracking-[0.28em] text-white/55">{label}</div>
+      <pre className="whitespace-pre-wrap break-words font-mono text-[1rem] leading-8 sm:text-[1.05rem]">
+        {value}
+      </pre>
     </div>
   );
 }
@@ -153,27 +155,27 @@ export default function TerminalBox({
           <div className="mb-3 text-sm font-semibold text-white">Execution output</div>
           <div className="space-y-3">
             {error ? (
-              <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 p-4 text-rose-200">
-                <div className="mb-2 flex items-center gap-2 font-sans font-medium">
+              <div className="rounded-[24px] border border-rose-500/30 bg-black p-5 text-rose-100 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
+                <div className="mb-3 flex items-center gap-2 font-sans font-medium text-base">
                   <AlertTriangle size={16} />
                   Execution gateway error
                 </div>
-                <pre className="whitespace-pre-wrap break-words">{error}</pre>
+                <pre className="whitespace-pre-wrap break-words font-mono text-base leading-8">{error}</pre>
               </div>
             ) : execution ? (
               <>
                 <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-[22px] border border-white/10 bg-white/5 p-4">
-                    <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Status</div>
-                    <div className="mt-2 text-sm font-semibold text-white">{execution.status.description}</div>
+                  <div className="rounded-[24px] border border-white/15 bg-black p-5 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
+                    <div className="text-xs uppercase tracking-[0.22em] text-white/45">Status</div>
+                    <div className="mt-3 text-lg font-semibold text-white">{execution.status.description}</div>
                   </div>
-                  <div className="rounded-[22px] border border-white/10 bg-white/5 p-4">
-                    <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Time</div>
-                    <div className="mt-2 text-sm font-semibold text-white">{execution.time ?? "n/a"} sec</div>
+                  <div className="rounded-[24px] border border-white/15 bg-black p-5 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
+                    <div className="text-xs uppercase tracking-[0.22em] text-white/45">Time</div>
+                    <div className="mt-3 text-lg font-semibold text-white">{execution.time ?? "n/a"} sec</div>
                   </div>
-                  <div className="rounded-[22px] border border-white/10 bg-white/5 p-4">
-                    <div className="text-xs uppercase tracking-[0.18em] text-slate-400">Memory</div>
-                    <div className="mt-2 text-sm font-semibold text-white">
+                  <div className="rounded-[24px] border border-white/15 bg-black p-5 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
+                    <div className="text-xs uppercase tracking-[0.22em] text-white/45">Memory</div>
+                    <div className="mt-3 text-lg font-semibold text-white">
                       {execution.memory !== null ? `${execution.memory} KB` : "n/a"}
                     </div>
                   </div>
@@ -183,13 +185,13 @@ export default function TerminalBox({
                 <OutputSection label="Compile output" tone="danger" value={execution.compileOutput} />
                 <OutputSection label="Runtime message" value={execution.message} />
                 {!execution.stdout && !execution.stderr && !execution.compileOutput && !execution.message ? (
-                  <div className="rounded-[22px] border border-white/10 bg-white/5 p-4 text-sm text-slate-300">
+                  <div className="rounded-[24px] border border-white/15 bg-black p-5 text-base leading-8 text-zinc-200 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
                     The program finished without producing visible output.
                   </div>
                 ) : null}
               </>
             ) : (
-              <div className="theme-input rounded-[24px] p-4 text-slate-600">
+              <div className="rounded-[24px] border border-white/15 bg-black p-5 text-base leading-8 text-zinc-200 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
                 [system] Structured execution output will appear here after you run the active file.
               </div>
             )}

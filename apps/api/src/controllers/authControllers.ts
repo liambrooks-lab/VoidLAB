@@ -16,7 +16,7 @@ import {
   sanitizeReturnTo,
   setOAuthStateCookie,
   setSessionCookie,
-  verifySessionToken,
+  type SessionPayload,
 } from "../lib/session";
 import type { AuthenticatedRequest } from "../middleware/auth";
 
@@ -78,6 +78,36 @@ export const defaultProfileShape = {
   providers: { github: false, google: false, x: false },
   region: "Global",
   socials: { github: "", instagram: "", linkedin: "", x: "" },
+};
+
+const normalizeSessionProfile = (session: SessionPayload | null) => {
+  if (!session?.userId) {
+    return null;
+  }
+
+  return {
+    ...defaultProfileShape,
+    avatar: session.avatar ?? "",
+    bio: session.bio ?? "",
+    email: session.email ?? "",
+    githubConnected: Boolean(session.githubConnected),
+    githubLogin: session.githubLogin ?? "",
+    id: session.userId,
+    name: session.name ?? "VoidLAB User",
+    phone: session.phone ?? "",
+    providers: {
+      github: Boolean(session.providers?.github),
+      google: Boolean(session.providers?.google),
+      x: Boolean(session.providers?.x),
+    },
+    region: session.region ?? "Global",
+    socials: {
+      github: session.socials?.github ?? "",
+      instagram: session.socials?.instagram ?? "",
+      linkedin: session.socials?.linkedin ?? "",
+      x: session.socials?.x ?? "",
+    },
+  };
 };
 
 const sendWelcomeEmail = async ({
@@ -256,7 +286,21 @@ export const completeOAuth = (provider: AuthProvider) => async (req: Request, re
                            await fetchXProfile(tokenResponse.accessToken);
 
     const userId = `temp-${providerProfile.providerUserId}`;
-    const appSession = { userId };
+    const appSession: SessionPayload = {
+      avatar: providerProfile.avatar,
+      email: providerProfile.email ?? "",
+      githubConnected: provider === "github",
+      githubLogin: provider === "github" ? providerProfile.username ?? "" : "",
+      name: providerProfile.name,
+      providers: {
+        github: provider === "github",
+        google: provider === "google",
+        x: provider === "x",
+      },
+      region: "Global",
+      socials: defaultProfileShape.socials,
+      userId,
+    };
     setSessionCookie(res, appSession);
     const token = createSessionToken(appSession);
 
@@ -270,21 +314,81 @@ export const completeOAuth = (provider: AuthProvider) => async (req: Request, re
 };
 
 export const manualLogin = async (req: Request, res: Response) => {
-  const { email, name } = req.body ?? {};
-  if (!email || !name) return res.status(400).json({ error: "Name and email are required." });
+  const { email, name, phone, region } = req.body ?? {};
+  if (
+    typeof email !== "string" ||
+    typeof name !== "string" ||
+    typeof phone !== "string" ||
+    typeof region !== "string" ||
+    !email.trim() ||
+    !name.trim() ||
+    !phone.trim() ||
+    !region.trim()
+  ) {
+    return res.status(400).json({ error: "Name, email, phone, and region are required." });
+  }
   const userId = `user-${crypto.randomUUID()}`;
-  const appSession = { userId };
+  const appSession: SessionPayload = {
+    email: email.trim(),
+    name: name.trim(),
+    phone: phone.trim(),
+    providers: { github: false, google: false, x: false },
+    region: region.trim(),
+    socials: defaultProfileShape.socials,
+    userId,
+  };
   setSessionCookie(res, appSession);
-  return res.status(200).json({ ok: true, profile: { ...defaultProfileShape, id: userId, name, email }, token: createSessionToken(appSession) });
+  return res.status(200).json({
+    ok: true,
+    profile: normalizeSessionProfile(appSession),
+    token: createSessionToken(appSession),
+  });
 };
 
 export const getCurrentUser = async (req: Request, res: Response) => {
   const session = readSession(req);
   if (!session?.userId) return res.status(401).json({ error: "Not signed in." });
-  return res.status(200).json({ ok: true, profile: { ...defaultProfileShape, id: session.userId, name: "VoidLAB User" } });
+  return res.status(200).json({ ok: true, profile: normalizeSessionProfile(session) });
 };
 
-export const updateCurrentUserProfile = async (_req: Request, res: Response) => res.status(200).json({ ok: true });
+export const updateCurrentUserProfile = async (req: AuthenticatedRequest, res: Response) => {
+  const session = req.authUser;
+
+  if (!session?.userId) {
+    return res.status(401).json({ error: "Authentication is required." });
+  }
+
+  const { bio, phone, region, socials } = req.body ?? {};
+  const nextSession: SessionPayload = {
+    ...session,
+    bio: typeof bio === "string" ? bio : session.bio ?? "",
+    phone: typeof phone === "string" ? phone : session.phone ?? "",
+    region: typeof region === "string" ? region : session.region ?? "Global",
+    socials:
+      socials && typeof socials === "object"
+        ? {
+            github: typeof socials.github === "string" ? socials.github : session.socials?.github ?? "",
+            instagram:
+              typeof socials.instagram === "string"
+                ? socials.instagram
+                : session.socials?.instagram ?? "",
+            linkedin:
+              typeof socials.linkedin === "string"
+                ? socials.linkedin
+                : session.socials?.linkedin ?? "",
+            x: typeof socials.x === "string" ? socials.x : session.socials?.x ?? "",
+          }
+        : session.socials ?? defaultProfileShape.socials,
+  };
+
+  setSessionCookie(res, nextSession);
+
+  return res.status(200).json({
+    ok: true,
+    profile: normalizeSessionProfile(nextSession),
+    token: createSessionToken(nextSession),
+  });
+};
 
 export const logout = (_req: Request, res: Response) => { 
   clearSessionCookie(res); 
@@ -299,4 +403,12 @@ export const beginXOAuth = startOAuth("x");
 export const handleGoogleOAuthCallback = completeOAuth("google");
 export const handleGitHubOAuthCallback = completeOAuth("github");
 export const handleXOAuthCallback = completeOAuth("x");
-export const getGitHubConnectionStatus = async (_req: Request, res: Response) => res.status(200).json({ ok: true, connected: false });
+export const getGitHubConnectionStatus = async (req: Request, res: Response) => {
+  const session = readSession(req);
+
+  return res.status(200).json({
+    ok: true,
+    connected: Boolean(session?.githubConnected),
+    username: session?.githubLogin ?? "",
+  });
+};

@@ -5,6 +5,9 @@ const judge0ApiUrl = process.env.JUDGE0_API_URL ?? "https://ce.judge0.com";
 const C_PLUS_PLUS_LANGUAGE_ID = 105;
 const JAVASCRIPT_LANGUAGE_ID = 102;
 const TYPESCRIPT_LANGUAGE_ID = 101;
+const cpuTimeLimitSeconds = 15;
+const wallTimeLimitSeconds = 45;
+const memoryLimitKb = 786432;
 
 const encode = (value: string) => Buffer.from(value, "utf8").toString("base64");
 
@@ -134,12 +137,12 @@ export const executeCode = async (req: Request, res: Response) => {
       `${judge0ApiUrl}/submissions/?base64_encoded=true&wait=false`,
       {
         compiler_options: compilerOptions,
-        cpu_time_limit: 8,
+        cpu_time_limit: cpuTimeLimitSeconds,
         language_id: numericLanguageId,
-        memory_limit: 524288,
+        memory_limit: memoryLimitKb,
         source_code: encode(sourceCode),
         stdin: encode(normalizedStdin),
-        wall_time_limit: 20,
+        wall_time_limit: wallTimeLimitSeconds,
       },
       {
         headers: {

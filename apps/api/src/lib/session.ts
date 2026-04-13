@@ -4,6 +4,25 @@ import jwt from "jsonwebtoken";
 export type OAuthIntent = "link" | "login";
 
 export type SessionPayload = {
+  avatar?: string;
+  bio?: string;
+  email?: string;
+  githubConnected?: boolean;
+  githubLogin?: string;
+  name?: string;
+  phone?: string;
+  providers?: {
+    github: boolean;
+    google: boolean;
+    x: boolean;
+  };
+  region?: string;
+  socials?: {
+    github: string;
+    instagram: string;
+    linkedin: string;
+    x: string;
+  };
   userId: string;
 };
 

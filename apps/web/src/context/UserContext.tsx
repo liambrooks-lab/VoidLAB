@@ -168,6 +168,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       throw new Error(data.error || "VoidLAB could not save your profile.");
     }
 
+    if (data.token) {
+      storeSessionToken(String(data.token));
+    }
+
     const normalizedProfile = normalizeProfile(data.profile);
     setProfile(normalizedProfile);
 
