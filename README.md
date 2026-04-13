@@ -337,6 +337,14 @@ VoidLAB is built as a strong production-style MVP with:
 - GitHub publish flow
 - live deployment links
 
+- ---
+
+## Author
+
+Rudranarayan Jena
+
+GitHub: <a href ="https://github.com/liambrooks-lab/VoidLAB">liambrooks-lab</a>
+
 ---
 
 ## Author
