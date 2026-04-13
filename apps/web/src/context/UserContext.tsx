@@ -44,11 +44,14 @@ type UserContextValue = {
   profile: UserProfile | null;
   recordActivity: (activity: Omit<UserActivity, "createdAt" | "id">) => void;
   refreshProfile: () => Promise<UserProfile | null>;
+  saveAvatar: (avatar: string) => void;
   saveProfile: (profile: Partial<Pick<UserProfile, "bio" | "phone" | "region" | "socials">>) => Promise<UserProfile | null>;
 };
 
 const activityStorageKey = "voidlab-user-activities";
+const avatarStoragePrefix = "voidlab-avatar-";
 const storageLimit = 40;
+const activityRetentionMs = 7 * 24 * 60 * 60 * 1000;
 
 const emptySocials: UserSocialLinks = {
   github: "",
@@ -84,6 +87,24 @@ const normalizeProfile = (value: Partial<UserProfile> | null | undefined): UserP
   };
 };
 
+const getAvatarStorageKey = (userId: string) => `${avatarStoragePrefix}${userId}`;
+
+const readStoredAvatar = (userId: string) => {
+  if (typeof window === "undefined" || !userId) return "";
+  return window.localStorage.getItem(getAvatarStorageKey(userId)) ?? "";
+};
+
+const pruneActivities = (entries: UserActivity[]) => {
+  const cutoff = Date.now() - activityRetentionMs;
+
+  return entries
+    .filter((entry) => {
+      const createdAt = new Date(entry.createdAt).getTime();
+      return Number.isFinite(createdAt) && createdAt >= cutoff;
+    })
+    .slice(0, storageLimit);
+};
+
 const UserContext = createContext<UserContextValue | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
@@ -105,7 +126,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       }
 
       const data = await response.json();
-      const nextProfile = normalizeProfile(data.profile);
+      const normalizedProfile = normalizeProfile(data.profile);
+      const nextProfile =
+        normalizedProfile && normalizedProfile.id
+          ? {
+              ...normalizedProfile,
+              avatar: readStoredAvatar(normalizedProfile.id) || normalizedProfile.avatar,
+            }
+          : normalizedProfile;
       setProfile(nextProfile);
       return nextProfile;
     } catch {
@@ -128,7 +156,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       const rawActivities = window.localStorage.getItem(activityStorageKey);
       if (rawActivities) {
-        setActivities(JSON.parse(rawActivities) as UserActivity[]);
+        const prunedActivities = pruneActivities(JSON.parse(rawActivities) as UserActivity[]);
+        setActivities(prunedActivities);
+        window.localStorage.setItem(activityStorageKey, JSON.stringify(prunedActivities));
       }
     } finally {
       void refreshProfile().finally(() => setIsReady(true));
@@ -143,10 +173,32 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     };
 
     setActivities((current) => {
-      const nextActivities = [entry, ...current].slice(0, storageLimit);
+      const nextActivities = pruneActivities([entry, ...current]);
       window.localStorage.setItem(activityStorageKey, JSON.stringify(nextActivities));
       return nextActivities;
     });
+  };
+
+  const saveAvatar = (avatar: string) => {
+    if (!profile?.id || typeof window === "undefined") return;
+
+    const normalizedAvatar = avatar.trim();
+    const storageKey = getAvatarStorageKey(profile.id);
+
+    if (normalizedAvatar) {
+      window.localStorage.setItem(storageKey, normalizedAvatar);
+    } else {
+      window.localStorage.removeItem(storageKey);
+    }
+
+    setProfile((current) =>
+      current
+        ? {
+            ...current,
+            avatar: normalizedAvatar,
+          }
+        : current,
+    );
   };
 
   const saveProfile = async (
@@ -189,7 +241,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   const value = useMemo(
-    () => ({ activities, isReady, logout, profile, recordActivity, refreshProfile, saveProfile }),
+    () => ({ activities, isReady, logout, profile, recordActivity, refreshProfile, saveAvatar, saveProfile }),
     [activities, isReady, profile],
   );
 

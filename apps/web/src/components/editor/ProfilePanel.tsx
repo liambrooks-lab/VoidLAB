@@ -1,13 +1,15 @@
 "use client";
 
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useMemo, useRef, useState } from "react";
 import {
   ArrowUpRight,
+  Camera,
   Github,
   Instagram,
   Linkedin,
   MapPin,
   Phone,
+  RotateCcw,
   Save,
   Sparkles,
   UserCircle2,
@@ -28,9 +30,18 @@ const socialCards = [
   { key: "instagram", label: "Instagram", icon: Instagram },
 ] as const;
 
+const readFileAsDataUrl = (file: File) =>
+  new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ""));
+    reader.onerror = () => reject(new Error("VoidLAB could not read that image."));
+    reader.readAsDataURL(file);
+  });
+
 export default function ProfilePanel() {
-  const { activities, profile, recordActivity, saveProfile } = useUser();
+  const { activities, profile, recordActivity, saveAvatar, saveProfile } = useUser();
   const [status, setStatus] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState(() => ({
     bio: profile?.bio ?? "",
     socials: {
@@ -96,17 +107,79 @@ export default function ProfilePanel() {
       });
   };
 
+  const handleAvatarPick = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    try {
+      if (!file.type.startsWith("image/")) {
+        throw new Error("Please choose an image file for your DP.");
+      }
+
+      if (file.size > 2 * 1024 * 1024) {
+        throw new Error("Please choose an image smaller than 2 MB.");
+      }
+
+      const avatar = await readFileAsDataUrl(file);
+      saveAvatar(avatar);
+      setStatus("Display picture updated for this browser.");
+      recordActivity({
+        detail: "Updated the profile display picture from the profile page.",
+        title: "Display picture changed",
+        type: "profile",
+      });
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Display picture could not be updated.");
+    } finally {
+      if (event.target) {
+        event.target.value = "";
+      }
+    }
+  };
+
+  const handleRemoveAvatar = () => {
+    saveAvatar("");
+    setStatus("Display picture removed.");
+    recordActivity({
+      detail: "Removed the local display picture from the profile page.",
+      title: "Display picture removed",
+      type: "profile",
+    });
+  };
+
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_380px]">
       <section className="rounded-[32px] border border-sky-100 bg-white p-6 shadow-[0_22px_70px_rgba(148,163,184,0.14)]">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-          <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[28px] border border-sky-100 bg-slate-50">
-            {profile.avatar ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img alt={profile.name} className="h-full w-full object-cover" src={profile.avatar} />
-            ) : (
-              <UserCircle2 className="text-sky-500" size={34} />
-            )}
+          <div className="space-y-3">
+            <input
+              accept="image/*"
+              className="hidden"
+              onChange={(event) => void handleAvatarPick(event)}
+              ref={fileInputRef}
+              type="file"
+            />
+            <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[28px] border border-sky-100 bg-slate-50">
+              {profile.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img alt={profile.name} className="h-full w-full object-cover" src={profile.avatar} />
+              ) : (
+                <UserCircle2 className="text-sky-500" size={34} />
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button onClick={() => fileInputRef.current?.click()} tone="secondary" type="button">
+                <Camera size={15} />
+                Add DP
+              </Button>
+              {profile.avatar ? (
+                <Button onClick={handleRemoveAvatar} tone="secondary" type="button">
+                  <RotateCcw size={15} />
+                  Remove
+                </Button>
+              ) : null}
+            </div>
           </div>
 
           <div className="min-w-0 flex-1">
@@ -244,6 +317,7 @@ export default function ProfilePanel() {
 
       <section className="rounded-[32px] border border-sky-100 bg-white p-6 shadow-[0_22px_70px_rgba(148,163,184,0.14)]">
         <div className="text-sm font-semibold text-slate-950">Recent activity</div>
+        <div className="mt-2 text-sm text-slate-500">Entries older than 7 days are cleared automatically.</div>
         <div className="mt-4 space-y-3">
           {activities.length ? (
             activities.map((activity) => (
