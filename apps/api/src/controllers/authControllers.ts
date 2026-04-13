@@ -22,8 +22,6 @@ import type { AuthenticatedRequest } from "../middleware/auth";
 
 const resendApiUrl = "https://api.resend.com/emails";
 
-type OAuthIntent = "link" | "login";
-
 type ProviderProfile = {
   avatar: string;
   email?: string | null;
@@ -68,13 +66,6 @@ const providerConfigs = {
   { authUrl: string; callbackPath: string; clientId: string; clientSecret: string; scope: string }
 >;
 
-const emptySocials: SocialLinks = {
-  github: "",
-  instagram: "",
-  linkedin: "",
-  x: "",
-};
-
 export const defaultProfileShape = {
   avatar: "",
   bio: "",
@@ -84,13 +75,9 @@ export const defaultProfileShape = {
   id: "",
   name: "",
   phone: "",
-  providers: {
-    github: false,
-    google: false,
-    x: false,
-  },
+  providers: { github: false, google: false, x: false },
   region: "Global",
-  socials: emptySocials,
+  socials: { github: "", instagram: "", linkedin: "", x: "" },
 };
 
 const sendWelcomeEmail = async ({
@@ -103,36 +90,23 @@ const sendWelcomeEmail = async ({
 }) => {
   const apiKey = process.env.RESEND_API_KEY;
   const fromEmail = process.env.VOIDLAB_FROM_EMAIL;
-
   if (!apiKey || !fromEmail || !email) return { delivered: false };
 
-  const html = `
-    <div style="font-family:Arial,sans-serif;background:#f8fbff;padding:32px;color:#0f172a">
-      <div style="max-width:620px;margin:0 auto;background:white;border:1px solid #dbeafe;border-radius:24px;overflow:hidden">
-        <div style="padding:28px 32px;background:linear-gradient(135deg,#0f172a,#1d4ed8);color:white">
-          <h1 style="margin:12px 0 0;font-size:28px;">Your workspace is ready</h1>
-        </div>
-        <div style="padding:28px 32px">
-          <p>Hi ${name}, welcome to VoidLAB.</p>
-          <p><a href="${getWebAppUrl()}" style="color:#2563eb">Open Product</a></p>
-        </div>
-      </div>
-    </div>
-  `;
-
-  await fetch(resendApiUrl, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: fromEmail,
-      html,
-      subject: "Welcome to VoidLAB",
-      text: `Hi ${name}, your VoidLAB workspace is ready.`,
-      to: [email],
-    }),
-  });
-
-  return { delivered: true };
+  try {
+    await fetch(resendApiUrl, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        from: fromEmail,
+        html: `<h1>Welcome ${name}</h1><p>Your VoidLAB workspace is ready.</p>`,
+        subject: "Welcome to VoidLAB",
+        to: [email],
+      }),
+    });
+    return { delivered: true };
+  } catch {
+    return { delivered: false };
+  }
 };
 
 const getCallbackUrl = (provider: AuthProvider) =>
@@ -156,20 +130,12 @@ export const startOAuth = (provider: AuthProvider) => (req: AuthenticatedRequest
   if (!config.clientId || !config.clientSecret) {
     return res.status(500).json({ error: `${provider} OAuth is not configured.` });
   }
-
   const intent = req.query.intent === "link" ? "link" : "login";
   const returnTo = sanitizeReturnTo(typeof req.query.returnTo === "string" ? req.query.returnTo : undefined);
   const verifier = provider === "x" ? crypto.randomBytes(48).toString("base64url") : undefined;
-
-  const stateToken = createOAuthStateToken({
-    intent,
-    provider,
-    returnTo,
-    verifier,
-  });
+  const stateToken = createOAuthStateToken({ intent, provider, returnTo, verifier });
 
   setOAuthStateCookie(res, stateToken);
-
   const params = new URLSearchParams({
     client_id: config.clientId,
     redirect_uri: getCallbackUrl(provider),
@@ -182,16 +148,12 @@ export const startOAuth = (provider: AuthProvider) => (req: AuthenticatedRequest
     params.set("access_type", "offline");
     params.set("prompt", "consent");
   }
-
   if (provider === "x" && verifier) {
     params.set("code_challenge", toCodeChallenge(verifier));
     params.set("code_challenge_method", "S256");
   }
-
   return res.redirect(`${config.authUrl}?${params.toString()}`);
 };
-
-// --- START OAUTH EXCHANGE HELPERS (Preserving all your original logic) ---
 
 const exchangeGoogleCode = async (code: string): Promise<TokenResponse> => {
   const config = providerConfigs.google;
@@ -207,7 +169,13 @@ const exchangeGoogleCode = async (code: string): Promise<TokenResponse> => {
     }),
   });
   if (!response.ok) throw new Error(await response.text());
-  const data = await response.json();
+  const data = (await response.json()) as {
+    access_token: string;
+    expires_in?: number;
+    refresh_token?: string;
+    scope?: string;
+    token_type?: string;
+  };
   return {
     accessToken: data.access_token,
     expiresAt: data.expires_in ? Date.now() + data.expires_in * 1000 : null,
@@ -222,7 +190,7 @@ const fetchGoogleProfile = async (accessToken: string): Promise<ProviderProfile>
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!response.ok) throw new Error(await response.text());
-  const data = await response.json();
+  const data = (await response.json()) as { picture?: string; email?: string; name: string; sub: string };
   return { avatar: data.picture ?? "", email: data.email, name: data.name, providerUserId: data.sub };
 };
 
@@ -231,15 +199,10 @@ const exchangeGitHubCode = async (code: string): Promise<TokenResponse> => {
   const response = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: config.clientId,
-      client_secret: config.clientSecret,
-      code,
-      redirect_uri: getCallbackUrl("github"),
-    }),
+    body: JSON.stringify({ client_id: config.clientId, client_secret: config.clientSecret, code, redirect_uri: getCallbackUrl("github") }),
   });
   if (!response.ok) throw new Error(await response.text());
-  const data = await response.json();
+  const data = (await response.json()) as { access_token: string; scope?: string; token_type?: string };
   return { accessToken: data.access_token, scope: data.scope, tokenType: data.token_type };
 };
 
@@ -247,13 +210,13 @@ const fetchGitHubProfile = async (accessToken: string): Promise<ProviderProfile>
   const headers = { Accept: "application/vnd.github+json", Authorization: `Bearer ${accessToken}`, "User-Agent": "VoidLAB/1.0" };
   const userResponse = await fetch("https://api.github.com/user", { headers });
   if (!userResponse.ok) throw new Error(await userResponse.text());
-  const user = await userResponse.json();
+  const user = (await userResponse.json()) as { avatar_url?: string; email?: string | null; html_url?: string; id: number; login?: string; name?: string };
   let email = user.email ?? undefined;
   if (!email) {
     const emailResponse = await fetch("https://api.github.com/user/emails", { headers });
     if (emailResponse.ok) {
-      const emails = await emailResponse.json();
-      email = emails.find((e: any) => e.primary && e.verified)?.email ?? emails[0]?.email;
+      const emails = (await emailResponse.json()) as Array<{ email: string; primary: boolean; verified: boolean }>;
+      email = emails.find((e) => e.primary && e.verified)?.email ?? emails[0]?.email;
     }
   }
   return { avatar: user.avatar_url ?? "", email, name: user.name || user.login || "GitHub User", profileUrl: user.html_url, providerUserId: String(user.id), username: user.login };
@@ -268,14 +231,8 @@ const exchangeXCode = async (code: string, verifier: string): Promise<TokenRespo
     body: new URLSearchParams({ client_id: config.clientId, code, code_verifier: verifier, grant_type: "authorization_code", redirect_uri: getCallbackUrl("x") }),
   });
   if (!response.ok) throw new Error(await response.text());
-  const data = await response.json();
-  return {
-    accessToken: data.access_token,
-    expiresAt: data.expires_in ? Date.now() + data.expires_in * 1000 : null,
-    refreshToken: data.refresh_token,
-    scope: data.scope,
-    tokenType: data.token_type,
-  };
+  const data = (await response.json()) as { access_token: string; expires_in?: number; refresh_token?: string; scope?: string; token_type?: string };
+  return { accessToken: data.access_token, expiresAt: data.expires_in ? Date.now() + data.expires_in * 1000 : null, refreshToken: data.refresh_token, scope: data.scope, tokenType: data.token_type };
 };
 
 const fetchXProfile = async (accessToken: string): Promise<ProviderProfile> => {
@@ -283,7 +240,7 @@ const fetchXProfile = async (accessToken: string): Promise<ProviderProfile> => {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!response.ok) throw new Error(await response.text());
-  const payload = await response.json();
+  const payload = (await response.json()) as { data: { id: string; name: string; email?: string; profile_image_url?: string; username?: string } };
   return {
     avatar: payload.data.profile_image_url ?? "",
     email: payload.data.email,
@@ -294,117 +251,57 @@ const fetchXProfile = async (accessToken: string): Promise<ProviderProfile> => {
   };
 };
 
-// --- END OAUTH EXCHANGE HELPERS ---
+export const completeOAuth = (provider: AuthProvider) => async (req: Request, res: Response) => {
+  const state = typeof req.query.state === "string" ? req.query.state : null;
+  const code = typeof req.query.code === "string" ? req.query.code : null;
+  const oauthState = readOAuthState(req, state);
+  clearOAuthStateCookie(res);
+  if (!oauthState || !code) return redirectWithError(res, "/", "OAuth session expired.");
 
-export const completeOAuth =
-  (provider: AuthProvider) => async (req: Request, res: Response) => {
-    const state = typeof req.query.state === "string" ? req.query.state : null;
-    const code = typeof req.query.code === "string" ? req.query.code : null;
-    const oauthState = readOAuthState(req, state);
-    clearOAuthStateCookie(res);
+  try {
+    const tokenResponse = provider === "google" ? await exchangeGoogleCode(code) : 
+                         provider === "github" ? await exchangeGitHubCode(code) : 
+                         await exchangeXCode(code, oauthState.verifier || "");
 
-    if (!oauthState || oauthState.provider !== provider || !code) {
-      return redirectWithError(res, "/", "The OAuth session expired.");
+    const providerProfile = provider === "google" ? await fetchGoogleProfile(tokenResponse.accessToken) : 
+                           provider === "github" ? await fetchGitHubProfile(tokenResponse.accessToken) : 
+                           await fetchXProfile(tokenResponse.accessToken);
+
+    const userId = `temp-${providerProfile.providerUserId}`;
+    const appSession = { userId };
+    setSessionCookie(res, appSession);
+    const token = createSessionToken(appSession);
+
+    if (providerProfile.email) {
+      void sendWelcomeEmail({ email: providerProfile.email, name: providerProfile.name, region: "Global" }).catch(() => undefined);
     }
-
-    try {
-      const tokenResponse =
-        provider === "google" ? await exchangeGoogleCode(code) :
-        provider === "github" ? await exchangeGitHubCode(code) :
-        await exchangeXCode(code, oauthState.verifier || "");
-
-      const providerProfile =
-        provider === "google" ? await fetchGoogleProfile(tokenResponse.accessToken) :
-        provider === "github" ? await fetchGitHubProfile(tokenResponse.accessToken) :
-        await fetchXProfile(tokenResponse.accessToken);
-
-      // BYPASS DATABASE: Create an ephemeral profile
-      const userId = `user-${providerProfile.providerUserId}`;
-      const profile = {
-        ...defaultProfileShape,
-        id: userId,
-        name: providerProfile.name,
-        email: providerProfile.email || "",
-        avatar: providerProfile.avatar,
-        githubLogin: providerProfile.username || "",
-        githubConnected: provider === "github",
-        providers: { ...defaultProfileShape.providers, [provider]: true }
-      };
-
-      const appSession = { userId: profile.id };
-      setSessionCookie(res, appSession);
-      const token = createSessionToken(appSession);
-
-      // Trigger welcome email without blocking
-      if (profile.email) {
-        void sendWelcomeEmail({ email: profile.email, name: profile.name, region: "Global" }).catch(() => undefined);
-      }
-
-      return redirectWithSuccess(res, oauthState.returnTo, token);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "OAuth failed.";
-      return redirectWithError(res, oauthState.returnTo, message);
-    }
-  };
+    return redirectWithSuccess(res, oauthState.returnTo, token);
+  } catch (error) {
+    return redirectWithError(res, oauthState.returnTo, error instanceof Error ? error.message : "OAuth failed.");
+  }
+};
 
 export const manualLogin = async (req: Request, res: Response) => {
-  const { email, name, phone, region } = req.body ?? {};
-
-  if (!email || !name) {
-    return res.status(400).json({ error: "Name and email are required." });
-  }
-
-  // BYPASS DATABASE
+  const { email, name } = req.body ?? {};
+  if (!email || !name) return res.status(400).json({ error: "Name and email are required." });
   const userId = `user-${crypto.randomUUID()}`;
-  const profile = {
-    ...defaultProfileShape,
-    id: userId,
-    email: email.trim().toLowerCase(),
-    name: name.trim(),
-    phone: phone || "",
-    region: region || "Global"
-  };
-
-  const appSession = { userId: profile.id };
+  const appSession = { userId };
   setSessionCookie(res, appSession);
-
-  if (profile.email) {
-    void sendWelcomeEmail({ email: profile.email, name: profile.name, region: profile.region }).catch(() => undefined);
-  }
-
-  return res.status(200).json({ ok: true, profile, token: createSessionToken(appSession) });
+  return res.status(200).json({ ok: true, profile: { ...defaultProfileShape, id: userId, name, email }, token: createSessionToken(appSession) });
 };
 
 export const getCurrentUser = async (req: Request, res: Response) => {
   const session = readSession(req);
   if (!session?.userId) return res.status(401).json({ error: "Not signed in." });
-
-  // Return generated profile so frontend works
-  return res.status(200).json({
-    ok: true,
-    profile: { ...defaultProfileShape, id: session.userId, name: "VoidLAB User" }
-  });
+  return res.status(200).json({ ok: true, profile: { ...defaultProfileShape, id: session.userId, name: "VoidLAB User" } });
 };
 
-export const updateCurrentUserProfile = async (req: AuthenticatedRequest, res: Response) => {
-    // Return success but don't persist
-    return res.status(200).json({ ok: true });
-};
-
-export const logout = (_req: Request, res: Response) => {
-  clearSessionCookie(res);
-  clearOAuthStateCookie(res);
-  return res.status(200).json({ ok: true });
-};
-
+export const updateCurrentUserProfile = async (_req: Request, res: Response) => res.status(200).json({ ok: true });
+export const logout = (_req: Request, res: Response) => { clearSessionCookie(res); clearOAuthStateCookie(res); return res.status(200).json({ ok: true }); };
 export const beginGoogleOAuth = startOAuth("google");
 export const beginGitHubOAuth = startOAuth("github");
 export const beginXOAuth = startOAuth("x");
 export const handleGoogleOAuthCallback = completeOAuth("google");
 export const handleGitHubOAuthCallback = completeOAuth("github");
 export const handleXOAuthCallback = completeOAuth("x");
-
-export const getGitHubConnectionStatus = async (req: Request, res: Response) => {
-  const session = readSession(req);
-  return res.status(200).json({ ok: true, connected: false });
-};
+export const getGitHubConnectionStatus = async (_req: Request, res: Response) => res.status(200).json({ ok: true, connected: false });
