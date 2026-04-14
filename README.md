@@ -346,11 +346,3 @@ Rudranarayan Jena
 GitHub: <a href ="https://github.com/liambrooks-lab/VoidLAB">liambrooks-lab</a>
 
 ---
-
-## Author
-
-Rudranarayan Jena
-
-Github:
-
-liambrooks-lab
