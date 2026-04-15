@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>VoidLAB</strong><br />
-  A premium cloud code editor and compiler built for fast iteration, polished UX, and modern developer workflows.
+  An AI Powered coding environment with multi-language support, real-time execution, and Authentication System
 </p>
 
 <p align="center">
@@ -17,7 +17,7 @@
 
 ## Overview
 
-VoidLAB is a full-stack cloud IDE experience designed to feel like a polished product rather than a rough demo. It combines a premium onboarding flow, personalized workspace, Monaco-powered editor, multi-file editing, keyboard shortcuts, online code execution, direct stdin support for interactive programs, and GitHub publishing from inside the workspace.
+VoidLAB is a full-stack cloud IDE experience designed to feel like a polished product. It combines a premium onboarding flow, personalized workspace, Monaco-powered editor, multi-file editing, keyboard shortcuts, online code execution, direct stdin support for interactive programs, and GitHub publishing from inside the workspace. Built with a monorepo structure and designed for modular Scalability.
 
 The project is structured as a monorepo and split into:
 
