@@ -337,13 +337,12 @@ VoidLAB is built as a strong production-style MVP with:
 - GitHub publish flow
 - live deployment links
 
-- ---
+---
 
 ### 👨‍💻 Author
 
 **Rudranarayan Jena** 
 - **GitHub:** [@liambrooks-lab](https://github.com/liambrooks-lab)  
-- **Project:** [LEXIO](https://github.com/liambrooks-lab/LEXIO)  
-- **Live Demo:** [View Live Demo](https://liambrooks-lab.github.io/LEXIO/)
+
 
 ---
