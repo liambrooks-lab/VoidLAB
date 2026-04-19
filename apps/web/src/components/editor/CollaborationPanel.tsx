@@ -44,25 +44,21 @@ type RoomState = {
 
 export default function CollaborationPanel() {
   const searchParams = useSearchParams();
+  const initialRoomId = searchParams.get("room")?.toUpperCase() ?? "";
   const { profile } = useUser();
-  const [roomId, setRoomId] = useState("");
+  const [roomId, setRoomId] = useState(initialRoomId);
   const [roomName, setRoomName] = useState("VoidLAB Team Room");
   const [participantId, setParticipantId] = useState("");
   const [room, setRoom] = useState<RoomState | null>(null);
   const [message, setMessage] = useState("");
-  const [status, setStatus] = useState("Create a room or join one to start collaborating.");
+  const [status, setStatus] = useState(
+    initialRoomId
+      ? `Room ${initialRoomId} is ready to join.`
+      : "Create a room or join one to start collaborating.",
+  );
   const [loading, setLoading] = useState(false);
 
   const canCollaborate = Boolean(profile?.name);
-
-  useEffect(() => {
-    const roomFromQuery = searchParams.get("room");
-
-    if (roomFromQuery) {
-      setRoomId(roomFromQuery.toUpperCase());
-      setStatus(`Room ${roomFromQuery.toUpperCase()} is ready to join.`);
-    }
-  }, [searchParams]);
 
   const roomShareLink = useMemo(() => {
     if (!room?.id || typeof window === "undefined") return "";

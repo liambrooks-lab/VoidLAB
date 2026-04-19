@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import GitHubPanel from "@/components/editor/GitHubPanel";
 import { useUser } from "@/context/UserContext";
 import { buildOAuthStartUrl } from "@/lib/auth";
@@ -35,30 +35,39 @@ const getRepoNameFromUrl = (repoUrl: string) => {
   return cleaned;
 };
 
+const readInitialWorkspace = () => {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  return readWorkspace();
+};
+
 export default function GitHubWorkspacePanel() {
   const { profile, recordActivity } = useUser();
-  const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
-  const [gitState, setGitState] = useState<GitHubState>(defaultGitState);
+  const [workspace, setWorkspace] = useState<WorkspaceState | null>(() => readInitialWorkspace());
+  const [gitState, setGitState] = useState<GitHubState>(() => readInitialWorkspace()?.gitState ?? defaultGitState);
   const [copied, setCopied] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
-  const [pushForm, setPushForm] = useState<PushFormState>(defaultPushForm);
+  const [pushForm, setPushForm] = useState<PushFormState>(() => {
+    const initialWorkspace = readInitialWorkspace();
+
+    if (!initialWorkspace) {
+      return defaultPushForm;
+    }
+
+    return {
+      branch: initialWorkspace.gitState.branch || "main",
+      description: "",
+      mode: "new",
+      repository: getRepoNameFromUrl(initialWorkspace.gitState.repoUrl),
+      visibility: initialWorkspace.gitState.visibility,
+    };
+  });
   const [pushing, setPushing] = useState(false);
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [repoUrl, setRepoUrl] = useState("");
-
-  useEffect(() => {
-    const nextWorkspace = readWorkspace();
-    setWorkspace(nextWorkspace);
-    setGitState(nextWorkspace.gitState);
-    setPushForm({
-      branch: nextWorkspace.gitState.branch || "main",
-      description: "",
-      mode: "new",
-      repository: getRepoNameFromUrl(nextWorkspace.gitState.repoUrl),
-      visibility: nextWorkspace.gitState.visibility,
-    });
-  }, []);
 
   const activeFile = useMemo(
     () =>

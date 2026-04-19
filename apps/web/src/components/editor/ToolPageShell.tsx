@@ -22,11 +22,11 @@ export default function ToolPageShell({
   return (
     <main className="app-shell min-h-screen px-4 py-5 sm:px-6 lg:px-8">
       <div className="mx-auto flex min-h-[calc(100vh-2.5rem)] max-w-7xl flex-col gap-6">
-        <header className="glass rounded-[28px] px-5 py-4">
+        <header className="glass theme-header rounded-[28px] px-5 py-4">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Link
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/10"
+                className="theme-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm transition"
                 href="/editor"
               >
                 <ArrowLeft size={16} />
@@ -42,14 +42,14 @@ export default function ToolPageShell({
         </header>
 
         <section className="panel rounded-[32px] p-6 sm:p-8">
-          <div className="inline-flex items-center gap-2 rounded-full border border-sky-300/20 bg-sky-300/10 px-4 py-2 text-xs uppercase tracking-[0.26em] text-sky-100">
+          <div className="theme-chip inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs uppercase tracking-[0.26em]">
             <Sparkles size={14} />
             {eyebrow}
           </div>
-          <h1 className="display-font mt-5 text-4xl font-semibold tracking-[-0.05em] text-white sm:text-5xl">
+          <h1 className="display-font theme-text-strong mt-5 text-4xl font-semibold tracking-[-0.05em] sm:text-5xl">
             {title}
           </h1>
-          <p className="mt-4 max-w-3xl text-base leading-8 text-slate-300">{description}</p>
+          <p className="theme-muted mt-4 max-w-3xl text-base leading-8">{description}</p>
           <div className="mt-8">{children}</div>
         </section>
       </div>

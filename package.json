@@ -12,6 +12,11 @@
     "lint": "node ./node_modules/turbo/bin/turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md,js}\""
   },
+  "overrides": {
+    "monaco-editor": {
+      "dompurify": "^3.3.4"
+    }
+  },
   "devDependencies": {
     "turbo": "latest",
     "prettier": "^3.0.0"

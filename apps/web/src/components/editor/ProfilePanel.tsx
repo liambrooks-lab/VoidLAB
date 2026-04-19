@@ -150,7 +150,7 @@ export default function ProfilePanel() {
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_380px]">
-      <section className="rounded-[32px] border border-sky-100 bg-white p-6 shadow-[0_22px_70px_rgba(148,163,184,0.14)]">
+      <section className="theme-surface-strong rounded-[32px] p-6">
         <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
           <div className="space-y-3">
             <input
@@ -160,18 +160,24 @@ export default function ProfilePanel() {
               ref={fileInputRef}
               type="file"
             />
-            <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-[28px] border border-sky-100 bg-slate-50">
+            <div className="theme-elevated flex h-28 w-28 items-center justify-center overflow-hidden rounded-[28px]">
               {profile.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img alt={profile.name} className="h-full w-full object-cover" src={profile.avatar} />
               ) : (
-                <UserCircle2 className="text-sky-500" size={34} />
+                <UserCircle2 className="theme-muted-strong" size={34} />
               )}
+            </div>
+            <div className="max-w-[220px] space-y-1">
+              <div className="text-xs uppercase tracking-[0.22em] theme-muted-strong">Display picture</div>
+              <div className="text-sm leading-6 theme-muted">
+                Optional. Leave it empty for a clean initials-free profile, or upload one anytime.
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <Button onClick={() => fileInputRef.current?.click()} tone="secondary" type="button">
                 <Camera size={15} />
-                Add DP
+                {profile.avatar ? "Change DP" : "Add DP"}
               </Button>
               {profile.avatar ? (
                 <Button onClick={handleRemoveAvatar} tone="secondary" type="button">
@@ -183,23 +189,23 @@ export default function ProfilePanel() {
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-4 py-2 text-xs uppercase tracking-[0.24em] text-sky-700">
+            <div className="theme-chip inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs uppercase tracking-[0.24em]">
               VoidLAB profile
             </div>
-            <h2 className="display-font mt-4 text-4xl font-semibold tracking-[-0.05em] text-slate-950">
+            <h2 className="display-font theme-text-strong mt-4 text-4xl font-semibold tracking-[-0.05em]">
               {profile.name}
             </h2>
-            <div className="mt-2 text-sm text-slate-600">{profile.email}</div>
+            <div className="theme-muted mt-2 text-sm">{profile.email}</div>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
-              <div className="rounded-[24px] border border-sky-100 bg-slate-50 p-4 text-sm text-slate-700">
-                <div className="flex items-center gap-2 font-medium text-slate-900">
+              <div className="theme-card rounded-[24px] p-4 text-sm theme-text">
+                <div className="theme-text-strong flex items-center gap-2 font-medium">
                   <MapPin size={16} />
                   Region
                 </div>
                 <div className="mt-2">{profile.region || "Global"}</div>
               </div>
-              <div className="rounded-[24px] border border-sky-100 bg-slate-50 p-4 text-sm text-slate-700">
-                <div className="flex items-center gap-2 font-medium text-slate-900">
+              <div className="theme-card rounded-[24px] p-4 text-sm theme-text">
+                <div className="theme-text-strong flex items-center gap-2 font-medium">
                   <Phone size={16} />
                   Contact
                 </div>
@@ -210,25 +216,25 @@ export default function ProfilePanel() {
         </div>
 
         <div className="mt-5 grid gap-3 md:grid-cols-3">
-          <div className="rounded-[24px] border border-sky-100 bg-slate-50 p-4">
-            <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Workspace files</div>
-            <div className="mt-3 text-3xl font-semibold text-slate-950">{workspaceSummary.fileCount}</div>
+          <div className="theme-card rounded-[24px] p-4">
+            <div className="theme-muted text-xs uppercase tracking-[0.24em]">Workspace files</div>
+            <div className="theme-text-strong mt-3 text-3xl font-semibold">{workspaceSummary.fileCount}</div>
           </div>
-          <div className="rounded-[24px] border border-sky-100 bg-slate-50 p-4">
-            <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Workspace folders</div>
-            <div className="mt-3 text-3xl font-semibold text-slate-950">{workspaceSummary.folderCount}</div>
+          <div className="theme-card rounded-[24px] p-4">
+            <div className="theme-muted text-xs uppercase tracking-[0.24em]">Workspace folders</div>
+            <div className="theme-text-strong mt-3 text-3xl font-semibold">{workspaceSummary.folderCount}</div>
           </div>
-          <div className="rounded-[24px] border border-sky-100 bg-slate-50 p-4">
-            <div className="text-xs uppercase tracking-[0.24em] text-slate-500">Activities</div>
-            <div className="mt-3 text-3xl font-semibold text-slate-950">{activities.length}</div>
+          <div className="theme-card rounded-[24px] p-4">
+            <div className="theme-muted text-xs uppercase tracking-[0.24em]">Activities</div>
+            <div className="theme-text-strong mt-3 text-3xl font-semibold">{activities.length}</div>
           </div>
         </div>
 
         <div className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
           <div>
-            <div className="text-sm font-semibold text-slate-950">Bio</div>
+            <div className="theme-text-strong text-sm font-semibold">Bio</div>
             <textarea
-              className="mt-3 min-h-[180px] w-full resize-none rounded-[24px] border border-sky-100 bg-slate-50 px-4 py-4 text-sm leading-7 text-slate-800 outline-none transition focus:border-sky-300"
+              className="theme-input mt-3 min-h-[180px] w-full resize-none rounded-[24px] px-4 py-4 text-sm leading-7 outline-none transition"
               onChange={handleBioChange}
               placeholder="Write a sharp intro about what you build, your stack, or what your VoidLAB workspace is focused on."
               value={draft.bio}
@@ -236,28 +242,28 @@ export default function ProfilePanel() {
           </div>
 
           <div>
-            <div className="text-sm font-semibold text-slate-950">Social links</div>
+            <div className="theme-text-strong text-sm font-semibold">Social links</div>
             <div className="mt-3 grid gap-3">
               <input
-                className="w-full rounded-2xl border border-sky-100 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300"
+                className="theme-input w-full rounded-2xl px-4 py-3 text-sm outline-none transition placeholder:text-slate-400"
                 onChange={handleSocialChange("github")}
                 placeholder="GitHub URL"
                 value={draft.socials.github}
               />
               <input
-                className="w-full rounded-2xl border border-sky-100 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300"
+                className="theme-input w-full rounded-2xl px-4 py-3 text-sm outline-none transition placeholder:text-slate-400"
                 onChange={handleSocialChange("linkedin")}
                 placeholder="LinkedIn URL"
                 value={draft.socials.linkedin}
               />
               <input
-                className="w-full rounded-2xl border border-sky-100 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300"
+                className="theme-input w-full rounded-2xl px-4 py-3 text-sm outline-none transition placeholder:text-slate-400"
                 onChange={handleSocialChange("x")}
                 placeholder="X URL"
                 value={draft.socials.x}
               />
               <input
-                className="w-full rounded-2xl border border-sky-100 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-sky-300"
+                className="theme-input w-full rounded-2xl px-4 py-3 text-sm outline-none transition placeholder:text-slate-400"
                 onChange={handleSocialChange("instagram")}
                 placeholder="Instagram URL"
                 value={draft.socials.instagram}
@@ -268,13 +274,13 @@ export default function ProfilePanel() {
                 <Save size={15} />
                 Save profile
               </Button>
-              {status ? <div className="text-sm text-slate-600">{status}</div> : null}
+              {status ? <div className="theme-muted text-right text-sm">{status}</div> : null}
             </div>
           </div>
         </div>
 
         <div className="mt-6">
-          <div className="text-sm font-semibold text-slate-950">Public links</div>
+          <div className="theme-text-strong text-sm font-semibold">Public links</div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             {socialCards.map((card) => {
               const Icon = card.icon;
@@ -282,14 +288,14 @@ export default function ProfilePanel() {
 
               return link ? (
                 <a
-                  className="flex items-center justify-between rounded-[24px] border border-sky-100 bg-slate-50 px-4 py-4 text-sm text-slate-900 transition hover:-translate-y-0.5 hover:border-sky-200"
+                  className="theme-card theme-text-strong flex items-center justify-between rounded-[24px] px-4 py-4 text-sm transition hover:-translate-y-0.5"
                   href={link}
                   key={card.key}
                   rel="noreferrer"
                   target="_blank"
                 >
                   <span className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-sky-100 bg-white text-sky-700">
+                    <span className="theme-elevated theme-muted-strong flex h-10 w-10 items-center justify-center rounded-2xl">
                       <Icon size={17} />
                     </span>
                     {card.label}
@@ -298,11 +304,11 @@ export default function ProfilePanel() {
                 </a>
               ) : (
                 <div
-                  className="flex items-center justify-between rounded-[24px] border border-dashed border-sky-100 bg-slate-50 px-4 py-4 text-sm text-slate-500"
+                  className="theme-card theme-muted flex items-center justify-between rounded-[24px] border-dashed px-4 py-4 text-sm"
                   key={card.key}
                 >
                   <span className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 items-center justify-center rounded-2xl border border-sky-100 bg-white text-slate-400">
+                    <span className="theme-surface theme-muted flex h-10 w-10 items-center justify-center rounded-2xl">
                       <Icon size={17} />
                     </span>
                     {card.label}
@@ -315,25 +321,25 @@ export default function ProfilePanel() {
         </div>
       </section>
 
-      <section className="rounded-[32px] border border-sky-100 bg-white p-6 shadow-[0_22px_70px_rgba(148,163,184,0.14)]">
-        <div className="text-sm font-semibold text-slate-950">Recent activity</div>
-        <div className="mt-2 text-sm text-slate-500">Entries older than 7 days are cleared automatically.</div>
+      <section className="theme-surface-strong rounded-[32px] p-6">
+        <div className="theme-text-strong text-sm font-semibold">Recent activity</div>
+        <div className="theme-muted mt-2 text-sm">Entries older than 7 days are cleared automatically.</div>
         <div className="mt-4 space-y-3">
           {activities.length ? (
             activities.map((activity) => (
-              <div className="rounded-[22px] border border-sky-100 bg-slate-50 p-4" key={activity.id}>
+              <div className="theme-card rounded-[22px] p-4" key={activity.id}>
                 <div className="flex items-center justify-between gap-3">
-                  <div className="text-sm font-semibold text-slate-900">{activity.title}</div>
-                  <div className="text-xs uppercase tracking-[0.18em] text-slate-500">{activity.type}</div>
+                  <div className="theme-text-strong text-sm font-semibold">{activity.title}</div>
+                  <div className="theme-muted text-xs uppercase tracking-[0.18em]">{activity.type}</div>
                 </div>
-                <div className="mt-2 text-sm leading-6 text-slate-600">{activity.detail}</div>
-                <div className="mt-3 text-xs text-slate-500">
+                <div className="theme-muted mt-2 text-sm leading-6">{activity.detail}</div>
+                <div className="theme-muted mt-3 text-xs">
                   {new Date(activity.createdAt).toLocaleString()}
                 </div>
               </div>
             ))
           ) : (
-            <div className="rounded-[22px] border border-sky-100 bg-slate-50 p-4 text-sm text-slate-600">
+            <div className="theme-card theme-muted rounded-[22px] p-4 text-sm">
               Activity will appear here as the user runs code, saves work, asks AI questions,
               imports files, and updates the workspace.
             </div>

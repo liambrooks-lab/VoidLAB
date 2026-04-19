@@ -7,7 +7,7 @@ import EditorTabs from "@/components/editor/EditorTabs";
 import FileExplorer from "@/components/editor/FileExplorer";
 import MonacoEditor from "@/components/editor/MonacoEditor";
 import Sidebar from "@/components/editor/Sidebar";
-import TerminalBox from "@/components/editor/TerminalBox";
+import TerminalBox, { type OutputTranscriptEntry } from "@/components/editor/TerminalBox";
 import ToolLauncherBar from "@/components/editor/ToolLauncherBar";
 import Brand from "@/components/layout/Brand";
 import SessionControls from "@/components/layout/SessionControls";
@@ -16,6 +16,11 @@ import { Button } from "@/components/ui/button";
 import { useTheme } from "@/context/ThemeContext";
 import { useUser } from "@/context/UserContext";
 import { useCompiler } from "@/hooks/useCompiler";
+import {
+  analyzeInteractiveExecution,
+  countBufferedStdinLines,
+  serializeStdinLines,
+} from "@/lib/execution";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { DEFAULT_LANGUAGE, getLanguageByExtension, getLanguageById, languageGroups } from "@/lib/languages";
 import { openPreview } from "@/lib/preview";
@@ -32,7 +37,6 @@ import {
   persistWorkspace,
   readWorkspace,
   replaceExtension,
-  resolveWorkspacePath,
   type ProjectFile,
   type WorkspaceState,
 } from "@/lib/workspace";
@@ -46,16 +50,40 @@ const readBrowserFile = (file: File) =>
     reader.readAsText(file);
   });
 
+type InteractiveSession = {
+  autoSubmit: boolean;
+  bufferedLines: string[];
+  expectedInputCount: number | null;
+  helperText: string;
+  promptCursor: number;
+  prompts: string[];
+};
+
+const createTranscriptEntry = (
+  tone: OutputTranscriptEntry["tone"],
+  text: string,
+): OutputTranscriptEntry => ({
+  id: `output-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+  text,
+  tone,
+});
+
+const formatTranscriptInput = (value: string) => `> ${value.length ? value : "[blank line]"}`;
+
 export default function EditorPage() {
   const router = useRouter();
   const { editorTheme } = useTheme();
   const { isReady, profile, recordActivity } = useUser();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [workspace, setWorkspace] = useState<WorkspaceState | null>(null);
+  const [workspace, setWorkspace] = useState<WorkspaceState | null>(() =>
+    typeof window === "undefined" ? null : readWorkspace(),
+  );
   const [draftName, setDraftName] = useState("src/main");
-  const [draftLanguage, setDraftLanguage] = useState(DEFAULT_LANGUAGE.id);
   const [statusMessage, setStatusMessage] = useState("Workspace initialized.");
   const [stdin, setStdin] = useState("");
+  const [pendingInteractiveInput, setPendingInteractiveInput] = useState("");
+  const [interactiveSession, setInteractiveSession] = useState<InteractiveSession | null>(null);
+  const [transcript, setTranscript] = useState<OutputTranscriptEntry[]>([]);
   const [commandInput, setCommandInput] = useState("");
   const { error, execution, loading, runCode } = useCompiler();
   const fileImportRef = useRef<HTMLInputElement>(null);
@@ -71,10 +99,7 @@ export default function EditorPage() {
 
     if (!profile) {
       router.replace("/");
-      return;
     }
-
-    setWorkspace(readWorkspace());
   }, [isReady, profile, router]);
 
   const persist = (nextWorkspace: WorkspaceState) => {
@@ -85,6 +110,9 @@ export default function EditorPage() {
 
   const activeFile = workspace?.files.find((file) => file.id === workspace.activeFileId) ?? workspace?.files[0];
   const currentLanguage = getLanguageById(activeFile?.languageId ?? DEFAULT_LANGUAGE.id);
+  const [draftLanguage, setDraftLanguage] = useState(
+    workspace?.files.find((file) => file.id === workspace.activeFileId)?.languageId ?? DEFAULT_LANGUAGE.id,
+  );
 
   const codeLooksInputDriven = (languageId: string, code: string) => {
     const normalized = code.toLowerCase();
@@ -123,11 +151,6 @@ export default function EditorPage() {
     }
   };
 
-  useEffect(() => {
-    if (!activeFile) return;
-    setDraftLanguage(activeFile.languageId);
-  }, [activeFile]);
-
   const handleSelectFile = (id: string) => {
     if (!workspace) return;
 
@@ -137,6 +160,7 @@ export default function EditorPage() {
     };
 
     persist(nextWorkspace);
+    setDraftLanguage(nextWorkspace.files.find((file) => file.id === id)?.languageId ?? DEFAULT_LANGUAGE.id);
   };
 
   const handleCreateFile = () => {
@@ -302,6 +326,184 @@ export default function EditorPage() {
     });
   };
 
+  const pushTranscriptEntries = (...entries: OutputTranscriptEntry[]) => {
+    setTranscript((current) => [...current, ...entries]);
+  };
+
+  const resetInteractiveInput = () => {
+    setStdin("");
+    setPendingInteractiveInput("");
+
+    if (!interactiveSession) {
+      setStatusMessage("Buffered stdin cleared.");
+      return;
+    }
+
+    const nextSession = {
+      ...interactiveSession,
+      bufferedLines: [],
+      promptCursor: 0,
+    };
+
+    setInteractiveSession(nextSession);
+    setTranscript([
+      createTranscriptEntry("status", "[system] Interactive stdin reset."),
+      createTranscriptEntry("prompt", `${nextSession.prompts[0] ?? "stdin[1]"}:`),
+    ]);
+    setStatusMessage("Interactive stdin reset. The next line is ready.");
+  };
+
+  const runWithStdin = async (
+    stdinPayload: string,
+    options?: {
+      preserveTranscript?: boolean;
+    },
+  ) => {
+    if (!workspace || !activeFile) return;
+
+    const normalizedPayload = typeof stdinPayload === "string" ? stdinPayload : "";
+    const bufferedLineCount = countBufferedStdinLines(normalizedPayload);
+
+    setInteractiveSession(null);
+    setPendingInteractiveInput("");
+    const nextEntries = [
+      createTranscriptEntry(
+        "status",
+        `[system] Running ${currentLanguage.label} on ${formatWorkspacePath(activeFile.path)}.`,
+      ),
+      ...(bufferedLineCount
+        ? [
+            createTranscriptEntry(
+              "input",
+              `[stdin] ${bufferedLineCount} buffered ${bufferedLineCount === 1 ? "line" : "lines"} attached.`,
+            ),
+          ]
+        : []),
+    ];
+
+    setTranscript((current) => (options?.preserveTranscript ? [...current, ...nextEntries] : nextEntries));
+
+    const result = await runCode(currentLanguage, activeFile.content, normalizedPayload);
+    const status = result.result?.status.description ?? (result.ok ? "Success" : "Failed");
+
+    if (result.error) {
+      pushTranscriptEntries(createTranscriptEntry("error", `[gateway] ${result.error}`));
+    }
+
+    if (result.result?.compileOutput) {
+      pushTranscriptEntries(createTranscriptEntry("error", result.result.compileOutput));
+    }
+
+    if (result.result?.stderr) {
+      pushTranscriptEntries(createTranscriptEntry("error", result.result.stderr));
+    }
+
+    if (result.result?.stdout) {
+      pushTranscriptEntries(createTranscriptEntry("stdout", result.result.stdout));
+    }
+
+    if (result.result?.message) {
+      pushTranscriptEntries(createTranscriptEntry("status", result.result.message));
+    }
+
+    if (!result.result?.stdout && !result.result?.stderr && !result.result?.compileOutput && !result.result?.message) {
+      pushTranscriptEntries(createTranscriptEntry("status", "[system] Program finished without visible output."));
+    }
+
+    pushTranscriptEntries(
+      createTranscriptEntry(
+        result.ok ? "success" : "error",
+        `[result] ${currentLanguage.label} finished with ${status}.`,
+      ),
+    );
+
+    setStatusMessage(
+      result.ok
+        ? `${currentLanguage.label} completed successfully.`
+        : `${currentLanguage.label} finished with ${status}.`,
+    );
+    recordActivity({
+      detail: `Ran ${formatWorkspacePath(activeFile.path)} with status ${status}.`,
+      title: result.ok ? "Program executed" : "Program run needs attention",
+      type: "run",
+    });
+  };
+
+  const startInteractiveRun = () => {
+    if (!activeFile) return;
+
+    const plan = analyzeInteractiveExecution(currentLanguage.id, activeFile.content);
+    const nextSession: InteractiveSession = {
+      autoSubmit: plan.autoSubmit,
+      bufferedLines: [],
+      expectedInputCount: plan.expectedInputCount,
+      helperText: plan.summary,
+      promptCursor: 0,
+      prompts: plan.prompts.length ? plan.prompts : ["stdin[1]"],
+    };
+
+    setInteractiveSession(nextSession);
+    setPendingInteractiveInput("");
+    setStdin("");
+    setTranscript([
+      createTranscriptEntry(
+        "status",
+        `[system] ${currentLanguage.label} looks interactive. VoidLAB will collect stdin inline before execution.`,
+      ),
+      createTranscriptEntry("status", plan.summary),
+      createTranscriptEntry("prompt", `${nextSession.prompts[0]}:`),
+    ]);
+    setStatusMessage("Awaiting stdin inside the Output tab.");
+  };
+
+  const handleInteractiveInputSubmit = () => {
+    if (!interactiveSession) return;
+
+    const nextLines = [...interactiveSession.bufferedLines, pendingInteractiveInput];
+    const serializedInput = serializeStdinLines(nextLines);
+    const nextPromptCursor = interactiveSession.promptCursor + 1;
+
+    setPendingInteractiveInput("");
+    setStdin(serializedInput);
+    pushTranscriptEntries(createTranscriptEntry("input", formatTranscriptInput(nextLines[nextLines.length - 1])));
+
+    if (
+      interactiveSession.autoSubmit &&
+      interactiveSession.expectedInputCount !== null &&
+      nextLines.length >= interactiveSession.expectedInputCount
+    ) {
+      void runWithStdin(serializedInput, { preserveTranscript: true });
+      return;
+    }
+
+    const nextPrompt = interactiveSession.prompts[nextPromptCursor] ?? `stdin[${nextPromptCursor + 1}]`;
+
+    setInteractiveSession({
+      ...interactiveSession,
+      bufferedLines: nextLines,
+      promptCursor: nextPromptCursor,
+    });
+    pushTranscriptEntries(createTranscriptEntry("prompt", `${nextPrompt}:`));
+    setStatusMessage(
+      `Buffered ${nextLines.length} stdin ${nextLines.length === 1 ? "line" : "lines"} for the next run.`,
+    );
+  };
+
+  const handleBufferedRun = async () => {
+    if (interactiveSession && pendingInteractiveInput.length) {
+      const nextLines = [...interactiveSession.bufferedLines, pendingInteractiveInput];
+      const serializedInput = serializeStdinLines(nextLines);
+
+      setPendingInteractiveInput("");
+      setStdin(serializedInput);
+      pushTranscriptEntries(createTranscriptEntry("input", formatTranscriptInput(pendingInteractiveInput)));
+      await runWithStdin(serializedInput, { preserveTranscript: true });
+      return;
+    }
+
+    await runWithStdin(stdin, { preserveTranscript: Boolean(interactiveSession) });
+  };
+
   const handleRun = async () => {
     if (!workspace || !activeFile) return;
 
@@ -327,27 +529,22 @@ export default function EditorPage() {
       return;
     }
 
+    const interactivePlan = analyzeInteractiveExecution(currentLanguage.id, activeFile.content);
     const runningWithEmptyStdin =
-      codeLooksInputDriven(currentLanguage.id, activeFile.content) && !stdin.length;
+      (interactivePlan.requiresInput || codeLooksInputDriven(currentLanguage.id, activeFile.content)) &&
+      !stdin.length;
+
+    if (interactivePlan.requiresInput && !stdin.length) {
+      startInteractiveRun();
+      return;
+    }
 
     setStatusMessage(
       runningWithEmptyStdin
         ? `Running ${currentLanguage.label} with empty stdin (EOF will be sent).`
         : `Running ${currentLanguage.label}...`,
     );
-    const result = await runCode(currentLanguage, activeFile.content, stdin);
-    const status = result.result?.status.description ?? (result.ok ? "Success" : "Failed");
-
-    setStatusMessage(
-      result.ok
-        ? `${currentLanguage.label} completed successfully.`
-        : `${currentLanguage.label} finished with ${status}.`,
-    );
-    recordActivity({
-      detail: `Ran ${formatWorkspacePath(activeFile.path)} with status ${status}.`,
-      title: result.ok ? "Program executed" : "Program run needs attention",
-      type: "run",
-    });
+    await runWithStdin(stdin);
   };
 
   const handleDownload = () => {
@@ -480,9 +677,12 @@ export default function EditorPage() {
   if (!profile || !workspace || !activeFile) return null;
 
   const firstName = profile.name.trim().split(/\s+/)[0] || "Builder";
+  const interactivePromptLabel =
+    interactiveSession?.prompts[interactiveSession.promptCursor] ??
+    (interactiveSession ? `stdin[${interactiveSession.promptCursor + 1}]` : "stdin[1]");
 
   return (
-    <main className="app-shell min-h-screen text-slate-100">
+    <main className="app-shell min-h-screen theme-text">
       <input
         className="hidden"
         multiple
@@ -498,11 +698,11 @@ export default function EditorPage() {
         type="file"
       />
       <div className="flex min-h-screen flex-col">
-        <header className="sticky top-0 z-30 border-b border-white/10 bg-slate-950/75 backdrop-blur-xl">
+        <header className="theme-header sticky top-0 z-30 border-b border-white/10">
           <div className="flex flex-wrap items-center justify-between gap-4 px-4 py-4 sm:px-6">
             <div className="flex items-center gap-3">
               <button
-                className="rounded-xl border border-white/10 bg-white/5 p-2 text-slate-300 lg:hidden"
+                className="theme-button-secondary rounded-xl p-2 lg:hidden"
                 onClick={() => setIsSidebarOpen((value) => !value)}
                 type="button"
               >
@@ -510,7 +710,7 @@ export default function EditorPage() {
               </button>
               <div className="space-y-1">
                 <Brand compact />
-                <div className="text-sm text-slate-300">
+                <div className="theme-muted text-sm">
                   Hi {firstName}, your cloud workspace is ready.
                 </div>
               </div>
@@ -518,12 +718,12 @@ export default function EditorPage() {
 
             <div className="flex flex-wrap items-center gap-2">
               <ThemeSwitcher />
-              <div className="hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-300 sm:flex sm:items-center sm:gap-2">
-                <Sparkles size={14} className="text-sky-200" />
+              <div className="theme-chip hidden rounded-2xl px-4 py-2 text-sm sm:flex sm:items-center sm:gap-2">
+                <Sparkles size={14} />
                 {profile.region || "Global"}
               </div>
               <Link
-                className="inline-flex items-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-slate-100 transition hover:bg-white/10"
+                className="theme-button-secondary inline-flex items-center gap-2 rounded-2xl px-4 py-2 text-sm transition"
                 href="/editor/profile"
               >
                 Profile
@@ -553,14 +753,14 @@ export default function EditorPage() {
               <section className="panel overflow-hidden rounded-[28px]">
                 <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-4 py-4">
                   <div>
-                    <div className="text-sm font-medium text-white">VoidLAB project workspace</div>
-                    <div className="text-xs text-slate-300">
-                      Active file: {formatWorkspacePath(activeFile.path)} • {currentLanguage.label}
+                    <div className="theme-text-strong text-sm font-medium">VoidLAB project workspace</div>
+                    <div className="theme-muted text-xs">
+                      Active file: {formatWorkspacePath(activeFile.path)} | {currentLanguage.label}
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
                     <select
-                      className="rounded-2xl border border-white/10 bg-slate-900 px-4 py-2 text-sm text-slate-100 outline-none transition focus:border-sky-300"
+                      className="theme-select rounded-2xl px-4 py-2 text-sm outline-none transition"
                       onChange={(event) => handleLanguageChange(event.target.value)}
                       value={currentLanguage.id}
                     >
@@ -633,7 +833,7 @@ export default function EditorPage() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white/10 px-4 py-3 text-xs text-slate-300">
+                <div className="theme-muted flex flex-wrap items-center justify-between gap-2 border-t border-white/10 px-4 py-3 text-xs">
                   <span>{statusMessage}</span>
                   <span>
                     {currentLanguage.runtimeLabel ??
@@ -643,17 +843,32 @@ export default function EditorPage() {
               </section>
 
               <TerminalBox
+                activeFilePath={activeFile.path}
                 commandHistory={workspace.terminal.history}
                 commandInput={commandInput}
                 cwd={workspace.terminal.cwd}
                 error={error}
                 execution={execution}
+                interactiveSession={{
+                  active: Boolean(interactiveSession),
+                  autoSubmit: interactiveSession?.autoSubmit ?? false,
+                  helperText:
+                    interactiveSession?.helperText ??
+                    "VoidLAB can buffer stdin here before sending the execution payload.",
+                  promptLabel: interactivePromptLabel,
+                  readyToRun: Boolean(stdin.length || pendingInteractiveInput.length),
+                }}
                 loading={loading}
+                onBufferedRun={() => void handleBufferedRun()}
                 onCommandChange={setCommandInput}
                 onCommandRun={handleCommandRun}
-                onInputChange={setStdin}
+                onInteractiveInputChange={setPendingInteractiveInput}
+                onInteractiveInputSubmit={handleInteractiveInputSubmit}
+                onResetBufferedInput={resetInteractiveInput}
                 onRun={() => void handleRun()}
+                pendingInteractiveInput={pendingInteractiveInput}
                 stdin={stdin}
+                transcript={transcript}
               />
             </div>
           </section>

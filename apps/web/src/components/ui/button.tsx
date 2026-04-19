@@ -15,10 +15,10 @@ export function Button({
   return (
     <button
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium transition duration-200 disabled:cursor-not-allowed disabled:opacity-60",
+        "inline-flex items-center justify-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-medium transition duration-200 outline-none disabled:cursor-not-allowed disabled:opacity-60",
         tone === "primary"
-          ? "bg-sky-400 text-white shadow-[0_14px_32px_rgba(59,130,246,0.22)] hover:bg-sky-300"
-          : "border border-white/10 bg-white/5 text-slate-100 hover:bg-white/10",
+          ? "theme-button-primary"
+          : "theme-button-secondary",
         className,
       )}
       {...props}

@@ -4,6 +4,8 @@ import { LanguageOption } from "@/lib/languages";
 
 export type ExecutionDetails = {
   compileOutput: string;
+  exitCode: number | null;
+  exitSignal: number | null;
   memory: number | null;
   message: string;
   output: string;
@@ -20,8 +22,8 @@ export type ExecutionDetails = {
 };
 
 const delay = (value: number) => new Promise((resolve) => setTimeout(resolve, value));
-const pollDelayMs = 1000;
-const maxAttempts = 90;
+const pollDelayMs = 1200;
+const maxAttempts = 120;
 
 export const useCompiler = () => {
   const [execution, setExecution] = useState<ExecutionDetails | null>(null);
@@ -49,8 +51,9 @@ export const useCompiler = () => {
       const createData = await createResponse.json();
 
       if (!createResponse.ok || !createData.token) {
-        setError(createData.error || "Execution failed.");
-        return { ok: false };
+        const nextError = createData.error || "Execution failed.";
+        setError(nextError);
+        return { error: nextError, ok: false as const };
       }
 
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
@@ -58,27 +61,32 @@ export const useCompiler = () => {
         const statusData = await statusResponse.json();
 
         if (!statusResponse.ok) {
-          setError(statusData.error || "Execution failed while polling status.");
-          return { ok: false };
+          const nextError = statusData.error || "Execution failed while polling status.";
+          setError(nextError);
+          return { error: nextError, ok: false as const };
         }
 
         const nextExecution = statusData.execution as ExecutionDetails;
         setExecution(nextExecution);
 
         if (!nextExecution.processing) {
-          return { ok: Boolean(nextExecution.status?.successful), result: nextExecution };
+          return {
+            ok: Boolean(nextExecution.status?.successful),
+            result: nextExecution,
+          } as const;
         }
 
         await delay(pollDelayMs);
       }
 
-      setError(
-        "Execution is still running longer than expected. Complex programs now get more time, but this one still exceeded the current waiting window.",
-      );
-      return { ok: false };
+      const nextError =
+        "Execution is still running longer than expected. Complex programs now get more time, but this one still exceeded the current waiting window.";
+      setError(nextError);
+      return { error: nextError, ok: false as const };
     } catch {
-      setError("VoidLAB could not reach the execution service.");
-      return { ok: false };
+      const nextError = "VoidLAB could not reach the execution service.";
+      setError(nextError);
+      return { error: nextError, ok: false as const };
     } finally {
       setLoading(false);
     }

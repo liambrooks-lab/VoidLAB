@@ -10,14 +10,15 @@ const wallTimeLimitSeconds = 30;
 const memoryLimitKb = 786432;
 
 const encode = (value: string) => Buffer.from(value, "utf8").toString("base64");
+const normalizeStream = (value: string) => value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
 
 const decode = (value?: string | null) => {
   if (!value) return "";
 
   try {
-    return Buffer.from(value, "base64").toString("utf8");
+    return normalizeStream(Buffer.from(value, "base64").toString("utf8"));
   } catch {
-    return value;
+    return normalizeStream(value);
   }
 };
 
@@ -89,22 +90,44 @@ const injectPromptShim = (languageId: number, source: string) => {
 const getCompilerOptions = (languageId: number) =>
   languageId === C_PLUS_PLUS_LANGUAGE_ID ? "-std=c++26" : undefined;
 
+const joinOutputSections = (sections: Array<{ content: string; label: string }>) =>
+  sections
+    .filter((section) => section.content.length > 0)
+    .map((section) => `${section.label}\n${section.content}`)
+    .join("\n\n");
+
+const stringifyErrorPayload = (value: unknown) => {
+  if (typeof value === "string") {
+    return value;
+  }
+
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "VoidLAB received an unreadable error payload.";
+  }
+};
+
 const mapExecution = (data: any) => {
   const stdout = decode(data.stdout);
   const stderr = decode(data.stderr);
   const compileOutput = decode(data.compile_output);
   const message = decode(data.message);
   const statusId = Number(data.status?.id ?? 0);
+  const joinedOutput = joinOutputSections([
+    { content: stdout, label: "[stdout]" },
+    { content: stderr, label: "[stderr]" },
+    { content: compileOutput, label: "[compile]" },
+    { content: message, label: "[message]" },
+  ]);
 
   return {
     compileOutput,
+    exitCode: data.exit_code ?? null,
+    exitSignal: data.exit_signal ?? null,
     memory: data.memory ?? null,
     message,
-    output:
-      [compileOutput, stderr, stdout, message]
-        .filter((item) => typeof item === "string" && item.length > 0)
-        .join("\n\n")
-        .trim() || "Code executed with no output.",
+    output: joinedOutput || "Code executed with no output.",
     processing: !isFinalStatus(statusId),
     status: {
       description: data.status?.description ?? "Unknown",
@@ -149,7 +172,9 @@ export const executeCode = async (req: Request, res: Response) => {
           "Content-Type": "application/json",
           "User-Agent": "VoidLAB/1.0",
         },
-        timeout: 20000,
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        timeout: 45000,
       },
     );
 
@@ -160,9 +185,7 @@ export const executeCode = async (req: Request, res: Response) => {
   } catch (error) {
     const message =
       axios.isAxiosError(error) && error.response?.data
-        ? typeof error.response.data === "string"
-          ? error.response.data
-          : JSON.stringify(error.response.data)
+        ? stringifyErrorPayload(error.response.data)
         : "Compilation failed at the VoidLAB execution gateway.";
 
     return res.status(500).json({ error: message });
@@ -178,12 +201,14 @@ export const getExecutionStatus = async (req: Request, res: Response) => {
 
   try {
     const response = await axios.get(
-      `${judge0ApiUrl}/submissions/${token}?base64_encoded=true&fields=stdout,stderr,compile_output,message,status,time,memory,token`,
+      `${judge0ApiUrl}/submissions/${token}?base64_encoded=true&fields=stdout,stderr,compile_output,message,status,time,memory,token,exit_code,exit_signal`,
       {
         headers: {
           "User-Agent": "VoidLAB/1.0",
         },
-        timeout: 20000,
+        maxBodyLength: Infinity,
+        maxContentLength: Infinity,
+        timeout: 45000,
       },
     );
 
@@ -194,9 +219,7 @@ export const getExecutionStatus = async (req: Request, res: Response) => {
   } catch (error) {
     const message =
       axios.isAxiosError(error) && error.response?.data
-        ? typeof error.response.data === "string"
-          ? error.response.data
-          : JSON.stringify(error.response.data)
+        ? stringifyErrorPayload(error.response.data)
         : "VoidLAB could not fetch the execution status.";
 
     return res.status(500).json({ error: message });

@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { apiBaseUrl } from "@/lib/api";
 import { buildAuthHeaders, clearStoredSessionToken, storeSessionToken } from "@/lib/session";
 
@@ -240,10 +240,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setProfile(null);
   };
 
-  const value = useMemo(
-    () => ({ activities, isReady, logout, profile, recordActivity, refreshProfile, saveAvatar, saveProfile }),
-    [activities, isReady, profile],
-  );
+  const value = { activities, isReady, logout, profile, recordActivity, refreshProfile, saveAvatar, saveProfile };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }

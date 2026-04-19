@@ -5,7 +5,7 @@ import { BookOpenText, Bot, Github, UserRound, Users2 } from "lucide-react";
 
 const tools = [
   {
-    description: "Read the detailed product manual and execution notes.",
+    description: "Read the illustrated operator handbook, command sheet, and execution flow.",
     href: "/editor/manual",
     icon: BookOpenText,
     label: "Manual",

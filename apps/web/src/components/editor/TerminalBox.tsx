@@ -1,109 +1,323 @@
 "use client";
 
-import { AlertTriangle, Play, TerminalSquare } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useMemo, useState } from "react";
+import {
+  AlertTriangle,
+  ArrowRight,
+  Globe,
+  Play,
+  RotateCcw,
+  TerminalSquare,
+} from "lucide-react";
 import { type ExecutionDetails } from "@/hooks/useCompiler";
+import { countBufferedStdinLines } from "@/lib/execution";
 import { formatWorkspacePath, type TerminalHistoryEntry } from "@/lib/workspace";
 
+type TerminalTab = "output" | "terminal" | "ports";
+
+export type OutputTranscriptEntry = {
+  id: string;
+  text: string;
+  tone: "error" | "input" | "prompt" | "status" | "stdout" | "success";
+};
+
+type InteractiveSessionState = {
+  active: boolean;
+  autoSubmit: boolean;
+  helperText: string;
+  promptLabel: string;
+  readyToRun: boolean;
+};
+
 type TerminalBoxProps = {
+  activeFilePath: string;
   commandHistory: TerminalHistoryEntry[];
   commandInput: string;
   cwd: string;
   error: string;
   execution: ExecutionDetails | null;
+  interactiveSession: InteractiveSessionState;
   loading: boolean;
+  onBufferedRun: () => void;
   onCommandChange: (value: string) => void;
   onCommandRun: () => void;
-  onInputChange: (value: string) => void;
+  onInteractiveInputChange: (value: string) => void;
+  onInteractiveInputSubmit: () => void;
+  onResetBufferedInput: () => void;
   onRun: () => void;
+  pendingInteractiveInput: string;
   stdin: string;
+  transcript: OutputTranscriptEntry[];
 };
 
-type SectionProps = {
+type OutputSectionProps = {
   label: string;
   tone?: "danger" | "default" | "success";
   value: string;
 };
 
-function OutputSection({ label, tone = "default", value }: SectionProps) {
+const tabs: Array<{ id: TerminalTab; label: string }> = [
+  { id: "output", label: "Output" },
+  { id: "terminal", label: "Terminal" },
+  { id: "ports", label: "Ports" },
+];
+
+const terminalButtonBase =
+  "inline-flex items-center justify-center gap-2 rounded-2xl border px-4 py-2.5 text-sm font-medium transition outline-none disabled:cursor-not-allowed disabled:opacity-50";
+const terminalButtonPrimary = `${terminalButtonBase} border-sky-400/40 bg-sky-400 text-slate-950 hover:bg-sky-300`;
+const terminalButtonSecondary = `${terminalButtonBase} border-white/10 bg-white/[0.04] text-white hover:bg-white/[0.08]`;
+
+function OutputSection({ label, tone = "default", value }: OutputSectionProps) {
   if (!value) return null;
 
   const classes =
     tone === "danger"
-      ? "border-rose-500/30 bg-black text-rose-100"
+      ? "border-rose-500/30 bg-rose-500/[0.06] text-rose-100"
       : tone === "success"
-        ? "border-emerald-500/30 bg-black text-emerald-100"
-        : "border-white/15 bg-black text-zinc-100";
+        ? "border-emerald-500/30 bg-emerald-500/[0.06] text-emerald-100"
+        : "border-white/10 bg-white/[0.03] text-zinc-100";
 
   return (
-    <div className={`rounded-[24px] border p-5 shadow-[0_18px_60px_rgba(0,0,0,0.45)] ${classes}`}>
-      <div className="mb-3 text-xs uppercase tracking-[0.28em] text-white/55">{label}</div>
-      <pre className="whitespace-pre-wrap break-words font-mono text-[1rem] leading-8 sm:text-[1.05rem]">
-        {value}
-      </pre>
+    <div className={`rounded-[22px] border p-4 ${classes}`}>
+      <div className="mb-3 text-xs uppercase tracking-[0.24em] text-white/45">{label}</div>
+      <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-7">{value}</pre>
+    </div>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[20px] border border-white/10 bg-white/[0.03] p-4">
+      <div className="text-xs uppercase tracking-[0.22em] text-white/40">{label}</div>
+      <div className="mt-3 text-base font-semibold text-white">{value}</div>
+    </div>
+  );
+}
+
+function TranscriptLine({ entry }: { entry: OutputTranscriptEntry }) {
+  const toneClass =
+    entry.tone === "error"
+      ? "text-rose-200"
+      : entry.tone === "input"
+        ? "text-sky-200"
+        : entry.tone === "prompt"
+          ? "text-amber-100"
+          : entry.tone === "success"
+            ? "text-emerald-200"
+            : entry.tone === "stdout"
+              ? "text-zinc-100"
+              : "text-white/70";
+
+  return (
+    <div className={`whitespace-pre-wrap break-words font-mono text-sm leading-7 ${toneClass}`}>
+      {entry.text}
     </div>
   );
 }
 
 export default function TerminalBox({
+  activeFilePath,
   commandHistory,
   commandInput,
   cwd,
   error,
   execution,
+  interactiveSession,
   loading,
+  onBufferedRun,
   onCommandChange,
   onCommandRun,
-  onInputChange,
+  onInteractiveInputChange,
+  onInteractiveInputSubmit,
+  onResetBufferedInput,
   onRun,
+  pendingInteractiveInput,
   stdin,
+  transcript,
 }: TerminalBoxProps) {
-  const latestStatus = execution?.status.description ?? (loading ? "Running" : "Idle");
+  const [activeTab, setActiveTab] = useState<TerminalTab>("output");
+  const bufferedLines = useMemo(() => countBufferedStdinLines(stdin), [stdin]);
+  const latestStatus =
+    execution?.status.description ?? (interactiveSession.active ? "Awaiting stdin" : loading ? "Running" : "Idle");
+  const visibleTab: TerminalTab =
+    loading || Boolean(error) || Boolean(execution) || interactiveSession.active ? "output" : activeTab;
 
   return (
-    <section className="panel rounded-[28px]">
+    <section className="overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-[0_22px_80px_rgba(0,0,0,0.58)]">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4">
-        <div className="flex items-center gap-2 text-sm font-semibold text-white">
-          <TerminalSquare size={16} />
-          Terminal and output
-        </div>
         <div className="flex items-center gap-3">
-          <div className="text-xs uppercase tracking-[0.22em] text-slate-400">{latestStatus}</div>
-          <Button disabled={loading} onClick={onRun} type="button">
+          <div className="flex items-center gap-2 text-sm font-semibold text-white">
+            <TerminalSquare size={16} />
+            Unified console
+          </div>
+          <div className="hidden text-xs uppercase tracking-[0.22em] text-white/40 sm:block">
+            {latestStatus}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="inline-flex rounded-full border border-white/10 bg-white/[0.03] p-1">
+            {tabs.map((tab) => (
+              <button
+                className={`rounded-full px-3 py-1.5 text-xs uppercase tracking-[0.22em] transition ${
+                  visibleTab === tab.id
+                    ? "bg-white text-slate-950"
+                    : "text-white/60 hover:bg-white/[0.06] hover:text-white"
+                }`}
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                type="button"
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+          <button className={terminalButtonPrimary} disabled={loading} onClick={onRun} type="button">
             <Play size={15} />
             {loading ? "Running" : "Run active file"}
-          </Button>
+          </button>
         </div>
       </div>
-      <div className="grid gap-0 xl:grid-cols-[320px_360px_minmax(0,1fr)]">
-        <div className="border-b border-white/10 p-5 xl:border-b-0 xl:border-r">
-          <div className="text-sm font-semibold text-white">
-            Input (stdin) - for interactive programs
-          </div>
-          <div className="mt-2 text-sm leading-6 text-slate-300">
-            Paste stdin exactly as the program expects it. New lines and copy-paste are preserved,
-            and the Run action always sends this field to the backend, even when it is empty.
-          </div>
-          <textarea
-            className="theme-input mt-4 min-h-[190px] w-full resize-none rounded-[24px] p-4 font-mono text-sm leading-7 outline-none focus:border-sky-300"
-            onChange={(event) => onInputChange(event.target.value)}
-            placeholder={"21\nAda Lovelace"}
-            value={stdin}
-          />
-        </div>
 
-        <div className="border-b border-white/10 p-5 xl:border-b-0 xl:border-r">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <div className="text-sm font-semibold text-white">Workspace commands</div>
-              <div className="mt-2 text-sm leading-6 text-slate-300">
-                Current directory {formatWorkspacePath(cwd)}
+      {visibleTab === "output" ? (
+        <div className="p-5">
+          <div className="grid gap-3 md:grid-cols-4">
+            <MetricCard label="Status" value={latestStatus} />
+            <MetricCard label="Buffered stdin" value={bufferedLines ? `${bufferedLines} line${bufferedLines === 1 ? "" : "s"}` : "none"} />
+            <MetricCard label="Time" value={execution?.time ? `${execution.time} sec` : loading ? "running" : "n/a"} />
+            <MetricCard
+              label="Memory"
+              value={execution?.memory !== null && execution?.memory !== undefined ? `${execution.memory} KB` : "n/a"}
+            />
+          </div>
+
+          <div className="mt-4 rounded-[24px] border border-white/10 bg-[#030405] p-4">
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <div className="text-xs uppercase tracking-[0.22em] text-white/40">
+                Execution stream
+              </div>
+              <div className="truncate text-xs text-white/45">
+                {formatWorkspacePath(activeFilePath)}
               </div>
             </div>
+
+            <div className="scrollbar-thin h-[240px] space-y-3 overflow-y-auto pr-2">
+              {transcript.length ? (
+                transcript.map((entry) => <TranscriptLine entry={entry} key={entry.id} />)
+              ) : (
+                <div className="font-mono text-sm leading-7 text-white/55">
+                  [system] Run the active file and VoidLAB will stream status, stdin prompts, stdout,
+                  and diagnostics here.
+                </div>
+              )}
+            </div>
+
+            {interactiveSession.active ? (
+              <div className="mt-4 rounded-[20px] border border-sky-400/20 bg-sky-400/[0.05] p-4">
+                <div className="text-xs uppercase tracking-[0.22em] text-sky-200">
+                  {interactiveSession.promptLabel}
+                </div>
+                <div className="mt-2 text-sm leading-6 text-zinc-200">
+                  {interactiveSession.helperText}
+                </div>
+                <div className="mt-4 flex flex-col gap-3 lg:flex-row">
+                  <input
+                    className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-white outline-none transition placeholder:text-white/30 focus:border-sky-300"
+                    onChange={(event) => onInteractiveInputChange(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        onInteractiveInputSubmit();
+                      }
+                    }}
+                    placeholder="Type the next stdin line and press Enter"
+                    value={pendingInteractiveInput}
+                  />
+                  <div className="flex flex-wrap gap-3">
+                    <button className={terminalButtonSecondary} onClick={onInteractiveInputSubmit} type="button">
+                      <ArrowRight size={15} />
+                      Send line
+                    </button>
+                    {!interactiveSession.autoSubmit || interactiveSession.readyToRun ? (
+                      <button className={terminalButtonPrimary} onClick={onBufferedRun} type="button">
+                        <Play size={15} />
+                        Run now
+                      </button>
+                    ) : null}
+                    {bufferedLines ? (
+                      <button className={terminalButtonSecondary} onClick={onResetBufferedInput} type="button">
+                        <RotateCcw size={15} />
+                        Reset
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            ) : bufferedLines ? (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3">
+                <div className="text-sm text-white/70">
+                  {bufferedLines} stdin {bufferedLines === 1 ? "line is" : "lines are"} ready for the next run.
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <button className={terminalButtonSecondary} onClick={onResetBufferedInput} type="button">
+                    <RotateCcw size={15} />
+                    Clear stdin
+                  </button>
+                  <button className={terminalButtonPrimary} disabled={loading} onClick={onBufferedRun} type="button">
+                    <Play size={15} />
+                    Run with buffered input
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
 
-          <div className="theme-input mt-4 rounded-[24px] p-4">
-            <div className="scrollbar-thin h-[190px] space-y-3 overflow-y-auto pr-2 font-mono text-sm leading-6 text-slate-800">
+          <div className="mt-4 space-y-3">
+            {error ? (
+              <div className="rounded-[22px] border border-rose-500/30 bg-rose-500/[0.06] p-4 text-rose-100">
+                <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
+                  <AlertTriangle size={16} />
+                  Execution gateway error
+                </div>
+                <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-7">{error}</pre>
+              </div>
+            ) : null}
+
+            {execution ? (
+              <>
+                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                  <MetricCard label="Judge0 status" value={execution.status.description} />
+                  <MetricCard label="Exit code" value={execution.exitCode !== null ? String(execution.exitCode) : "n/a"} />
+                  <MetricCard
+                    label="Exit signal"
+                    value={execution.exitSignal !== null ? String(execution.exitSignal) : "n/a"}
+                  />
+                  <MetricCard label="Token" value={execution.token ?? "n/a"} />
+                </div>
+                <OutputSection label="Stdout" tone="success" value={execution.stdout} />
+                <OutputSection label="Stderr" tone="danger" value={execution.stderr} />
+                <OutputSection label="Compile output" tone="danger" value={execution.compileOutput} />
+                <OutputSection label="Runtime message" value={execution.message} />
+                {!execution.stdout && !execution.stderr && !execution.compileOutput && !execution.message ? (
+                  <div className="rounded-[22px] border border-white/10 bg-white/[0.03] p-4 text-sm leading-7 text-zinc-200">
+                    The program finished without producing visible output.
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {visibleTab === "terminal" ? (
+        <div className="p-5">
+          <div className="rounded-[24px] border border-white/10 bg-[#030405] p-4">
+            <div className="mb-3 text-xs uppercase tracking-[0.22em] text-white/40">
+              Workspace terminal
+            </div>
+            <div className="mb-4 text-sm text-white/55">Current directory {formatWorkspacePath(cwd)}</div>
+
+            <div className="scrollbar-thin h-[280px] space-y-4 overflow-y-auto pr-2 font-mono text-sm leading-7">
               {commandHistory.length ? (
                 commandHistory.map((entry) => (
                   <div key={entry.id}>
@@ -113,10 +327,10 @@ export default function TerminalBox({
                     <pre
                       className={`mt-1 whitespace-pre-wrap break-words ${
                         entry.status === "error"
-                          ? "text-rose-700"
+                          ? "text-rose-200"
                           : entry.status === "success"
-                            ? "text-slate-900"
-                            : "text-slate-700"
+                            ? "text-zinc-100"
+                            : "text-white/70"
                       }`}
                     >
                       {entry.output}
@@ -124,16 +338,16 @@ export default function TerminalBox({
                   </div>
                 ))
               ) : (
-                <div className="text-slate-500">
+                <div className="text-white/55">
                   Run commands like <code>ls</code>, <code>tree</code>, <code>mkdir src</code>,
                   <code>touch src/main.py</code>, <code>open src/main.py</code>, or <code>help</code>.
                 </div>
               )}
             </div>
 
-            <div className="mt-4 flex gap-3">
+            <div className="mt-4 flex flex-col gap-3 lg:flex-row">
               <input
-                className="theme-input flex-1 rounded-2xl px-4 py-3 text-sm outline-none focus:border-sky-300"
+                className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-white outline-none transition placeholder:text-white/30 focus:border-sky-300"
                 onChange={(event) => onCommandChange(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
@@ -144,60 +358,31 @@ export default function TerminalBox({
                 placeholder="touch src/main.py"
                 value={commandInput}
               />
-              <Button onClick={onCommandRun} tone="secondary" type="button">
+              <button className={terminalButtonSecondary} onClick={onCommandRun} type="button">
                 Run command
-              </Button>
+              </button>
             </div>
           </div>
         </div>
+      ) : null}
 
+      {visibleTab === "ports" ? (
         <div className="p-5">
-          <div className="mb-3 text-sm font-semibold text-white">Execution output</div>
-          <div className="space-y-3">
-            {error ? (
-              <div className="rounded-[24px] border border-rose-500/30 bg-black p-5 text-rose-100 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
-                <div className="mb-3 flex items-center gap-2 font-sans font-medium text-base">
-                  <AlertTriangle size={16} />
-                  Execution gateway error
-                </div>
-                <pre className="whitespace-pre-wrap break-words font-mono text-base leading-8">{error}</pre>
-              </div>
-            ) : execution ? (
-              <>
-                <div className="grid gap-3 md:grid-cols-3">
-                  <div className="rounded-[24px] border border-white/15 bg-black p-5 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
-                    <div className="text-xs uppercase tracking-[0.22em] text-white/45">Status</div>
-                    <div className="mt-3 text-lg font-semibold text-white">{execution.status.description}</div>
-                  </div>
-                  <div className="rounded-[24px] border border-white/15 bg-black p-5 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
-                    <div className="text-xs uppercase tracking-[0.22em] text-white/45">Time</div>
-                    <div className="mt-3 text-lg font-semibold text-white">{execution.time ?? "n/a"} sec</div>
-                  </div>
-                  <div className="rounded-[24px] border border-white/15 bg-black p-5 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
-                    <div className="text-xs uppercase tracking-[0.22em] text-white/45">Memory</div>
-                    <div className="mt-3 text-lg font-semibold text-white">
-                      {execution.memory !== null ? `${execution.memory} KB` : "n/a"}
-                    </div>
-                  </div>
-                </div>
-                <OutputSection label="Stdout" tone="success" value={execution.stdout} />
-                <OutputSection label="Stderr" tone="danger" value={execution.stderr} />
-                <OutputSection label="Compile output" tone="danger" value={execution.compileOutput} />
-                <OutputSection label="Runtime message" value={execution.message} />
-                {!execution.stdout && !execution.stderr && !execution.compileOutput && !execution.message ? (
-                  <div className="rounded-[24px] border border-white/15 bg-black p-5 text-base leading-8 text-zinc-200 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
-                    The program finished without producing visible output.
-                  </div>
-                ) : null}
-              </>
-            ) : (
-              <div className="rounded-[24px] border border-white/15 bg-black p-5 text-base leading-8 text-zinc-200 shadow-[0_18px_60px_rgba(0,0,0,0.45)]">
-                [system] Structured execution output will appear here after you run the active file.
-              </div>
-            )}
+          <div className="flex min-h-[340px] flex-col items-start justify-center rounded-[24px] border border-white/10 bg-[#030405] p-6">
+            <div className="flex items-center gap-2 text-sm font-semibold text-white">
+              <Globe size={16} />
+              Ports
+            </div>
+            <div className="mt-3 max-w-xl text-sm leading-7 text-white/60">
+              Runtime-exposed ports will appear here once VoidLAB adds forwarded process sessions.
+              For now, browser-preview files still open directly in a new tab from the editor toolbar.
+            </div>
+            <div className="mt-6 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/70">
+              Active file: {formatWorkspacePath(activeFilePath)}
+            </div>
           </div>
         </div>
-      </div>
+      ) : null}
     </section>
   );
 }

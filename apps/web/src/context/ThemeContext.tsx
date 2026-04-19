@@ -14,18 +14,22 @@ const storageKey = "voidlab-theme";
 const ThemeContext = createContext<ThemeContextValue | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeName>("porcelain");
+  const [theme, setThemeState] = useState<ThemeName>(() => {
+    if (typeof window === "undefined") {
+      return "porcelain";
+    }
+
+    const stored = window.localStorage.getItem(storageKey) as ThemeName | null;
+
+    return stored === "cerulean" || stored === "midnight" || stored === "ember" || stored === "porcelain"
+      ? stored
+      : "porcelain";
+  });
 
   useEffect(() => {
-    const stored = window.localStorage.getItem(storageKey) as ThemeName | null;
-    const nextTheme =
-      stored === "cerulean" || stored === "midnight" || stored === "ember" || stored === "porcelain"
-        ? stored
-        : "porcelain";
-    document.documentElement.dataset.theme = nextTheme;
-    setThemeState(nextTheme);
-    window.localStorage.setItem(storageKey, nextTheme);
-  }, []);
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem(storageKey, theme);
+  }, [theme]);
 
   const setTheme = (nextTheme: ThemeName) => {
     setThemeState(nextTheme);
