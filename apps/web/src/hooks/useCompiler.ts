@@ -131,5 +131,10 @@ export const useCompiler = () => {
     abortRef.current?.abort();
   }, []);
 
-  return { cancelExecution, error, execution, loading, runCode };
+  const resetExecutionState = useCallback(() => {
+    setError("");
+    setExecution(null);
+  }, []);
+
+  return { cancelExecution, error, execution, loading, resetExecutionState, runCode };
 };

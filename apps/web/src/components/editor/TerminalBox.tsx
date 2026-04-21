@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
-  ArrowRight,
   Clock,
   Globe,
   Play,
@@ -24,10 +23,8 @@ export type OutputTranscriptEntry = {
 
 type InteractiveSessionState = {
   active: boolean;
-  autoSubmit: boolean;
   helperText: string;
   promptLabel: string;
-  readyToRun: boolean;
 };
 
 type TerminalBoxProps = {
@@ -39,11 +36,9 @@ type TerminalBoxProps = {
   execution: ExecutionDetails | null;
   interactiveSession: InteractiveSessionState;
   loading: boolean;
-  onBufferedRun: () => void;
   onCommandChange: (value: string) => void;
   onCommandRun: () => void;
   onInteractiveInputChange: (value: string) => void;
-  onInteractiveInputSubmit: () => void;
   onResetBufferedInput: () => void;
   onRun: () => void;
   pendingInteractiveInput: string;
@@ -130,11 +125,9 @@ export default function TerminalBox({
   execution,
   interactiveSession,
   loading,
-  onBufferedRun,
   onCommandChange,
   onCommandRun,
   onInteractiveInputChange,
-  onInteractiveInputSubmit,
   onResetBufferedInput,
   onRun,
   pendingInteractiveInput,
@@ -142,32 +135,27 @@ export default function TerminalBox({
   transcript,
 }: TerminalBoxProps) {
   const [activeTab, setActiveTab] = useState<TerminalTab>("output");
-  const bufferedLines = useMemo(() => countBufferedStdinLines(stdin), [stdin]);
   const transcriptEndRef = useRef<HTMLDivElement>(null);
-  const stdinInputRef = useRef<HTMLInputElement>(null);
+  const stdinInputRef = useRef<HTMLTextAreaElement>(null);
   const timedOut = execution?.timedOut || error.includes("timed out");
+  const stagedInputLines = useMemo(
+    () => countBufferedStdinLines(interactiveSession.active ? pendingInteractiveInput : stdin),
+    [interactiveSession.active, pendingInteractiveInput, stdin],
+  );
 
   const latestStatus =
     execution?.status.description ?? (interactiveSession.active ? "Input required" : loading ? "Running" : "Idle");
-  const visibleTab: TerminalTab =
-    loading || Boolean(error) || Boolean(execution) || interactiveSession.active ? "output" : activeTab;
 
-  // Auto-scroll transcript to bottom whenever it updates
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [transcript]);
 
-  // Auto-focus the stdin input whenever an interactive session starts
   useEffect(() => {
     if (interactiveSession.active) {
-      // Small timeout lets React flush the DOM before focusing
       const timer = setTimeout(() => stdinInputRef.current?.focus(), 80);
       return () => clearTimeout(timer);
     }
   }, [interactiveSession.active]);
-
-  /** Whether we should block any "run" CTA during stdin collection */
-  const isBlocked = loading || interactiveSession.active;
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-[0_22px_80px_rgba(0,0,0,0.58)]">
@@ -187,7 +175,7 @@ export default function TerminalBox({
             {tabs.map((tab) => (
               <button
                 className={`rounded-full px-3 py-1.5 text-xs uppercase tracking-[0.22em] transition ${
-                  visibleTab === tab.id
+                  activeTab === tab.id
                     ? "bg-white text-slate-950"
                     : "text-white/60 hover:bg-white/[0.06] hover:text-white"
                 }`}
@@ -199,24 +187,21 @@ export default function TerminalBox({
               </button>
             ))}
           </div>
-          <button
-            className={terminalButtonPrimary}
-            disabled={isBlocked}
-            onClick={onRun}
-            title={interactiveSession.active ? "Finish entering stdin before running" : undefined}
-            type="button"
-          >
+          <button className={terminalButtonPrimary} disabled={loading} onClick={onRun} type="button">
             <Play size={15} />
-            {loading ? "Running" : interactiveSession.active ? "Awaiting stdin" : "Run active file"}
+            {loading ? "Running" : interactiveSession.active ? "Run with input" : "Run active file"}
           </button>
         </div>
       </div>
 
-      {visibleTab === "output" ? (
+      {activeTab === "output" ? (
         <div className="p-5">
           <div className="grid gap-3 md:grid-cols-4">
             <MetricCard label="Status" value={latestStatus} />
-            <MetricCard label="Buffered stdin" value={bufferedLines ? `${bufferedLines} line${bufferedLines === 1 ? "" : "s"}` : "none"} />
+            <MetricCard
+              label="Input lines"
+              value={stagedInputLines ? `${stagedInputLines} line${stagedInputLines === 1 ? "" : "s"}` : "none"}
+            />
             <MetricCard label="Time" value={execution?.time ? `${execution.time} sec` : loading ? "running" : "n/a"} />
             <MetricCard
               label="Memory"
@@ -226,25 +211,19 @@ export default function TerminalBox({
 
           <div className="mt-4 rounded-[24px] border border-white/10 bg-[#030405] p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <div className="text-xs uppercase tracking-[0.22em] text-white/40">
-                Execution stream
-              </div>
-              <div className="truncate text-xs text-white/45">
-                {formatWorkspacePath(activeFilePath)}
-              </div>
+              <div className="text-xs uppercase tracking-[0.22em] text-white/40">Execution stream</div>
+              <div className="truncate text-xs text-white/45">{formatWorkspacePath(activeFilePath)}</div>
             </div>
 
             <div className="scrollbar-thin h-[240px] space-y-3 overflow-y-auto pr-2">
               {transcript.length ? (
                 <>
                   {transcript.map((entry) => <TranscriptLine entry={entry} key={entry.id} />)}
-                  {/* sentinel for auto-scroll */}
                   <div ref={transcriptEndRef} />
                 </>
               ) : (
                 <div className="font-mono text-sm leading-7 text-white/55">
-                  [system] Run the active file and VoidLAB will stream status, stdin prompts, stdout,
-                  and diagnostics here.
+                  [system] Run the active file and VoidLAB will stream status, stdin prompts, stdout, and diagnostics here.
                 </div>
               )}
             </div>
@@ -256,62 +235,28 @@ export default function TerminalBox({
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
                     <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-300" />
                   </span>
-                  VoidLAB system prompt
+                  Input required
                 </div>
-                <div className="mt-2 text-sm leading-6 text-zinc-200">
-                  {interactiveSession.helperText}
-                </div>
+                <div className="mt-2 text-sm leading-6 text-zinc-200">{interactiveSession.helperText}</div>
                 <div className="mt-3 rounded-2xl border border-white/10 bg-black/40 px-3 py-2 font-mono text-sm text-amber-100">
-                  {interactiveSession.promptLabel}:
+                  {interactiveSession.promptLabel}
                 </div>
-                <div className="mt-4 flex flex-col gap-3 lg:flex-row">
-                  <input
-                    autoComplete="off"
-                    className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-white outline-none transition placeholder:text-white/30 focus:border-sky-300"
-                    onChange={(event) => onInteractiveInputChange(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        onInteractiveInputSubmit();
-                      }
-                    }}
-                    placeholder="Type the next stdin value and press Enter"
-                    ref={stdinInputRef}
-                    value={pendingInteractiveInput}
-                  />
-                  <div className="flex flex-wrap gap-3">
-                    <button className={terminalButtonSecondary} onClick={onInteractiveInputSubmit} type="button">
-                      <ArrowRight size={15} />
-                      Add stdin line
-                    </button>
-                    {!interactiveSession.autoSubmit || interactiveSession.readyToRun ? (
-                      <button className={terminalButtonPrimary} onClick={onBufferedRun} type="button">
-                        <Play size={15} />
-                        Run now
-                      </button>
-                    ) : null}
-                    {bufferedLines ? (
-                      <button className={terminalButtonSecondary} onClick={onResetBufferedInput} type="button">
-                        <RotateCcw size={15} />
-                        Reset
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-            ) : bufferedLines ? (
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3">
-                <div className="text-sm text-white/70">
-                  {bufferedLines} stdin {bufferedLines === 1 ? "line is" : "lines are"} ready for the next run.
-                </div>
-                <div className="flex flex-wrap gap-3">
+                <textarea
+                  className="mt-4 min-h-[120px] w-full resize-y rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-white outline-none transition placeholder:text-white/30 focus:border-sky-300"
+                  onChange={(event) => onInteractiveInputChange(event.target.value)}
+                  placeholder={"Enter stdin exactly as your program expects it.\nUse a new line for each value."}
+                  ref={stdinInputRef}
+                  spellCheck={false}
+                  value={pendingInteractiveInput}
+                />
+                <div className="mt-4 flex flex-wrap gap-3">
                   <button className={terminalButtonSecondary} onClick={onResetBufferedInput} type="button">
                     <RotateCcw size={15} />
-                    Clear stdin
+                    Clear input
                   </button>
-                  <button className={terminalButtonPrimary} disabled={loading} onClick={onBufferedRun} type="button">
+                  <button className={terminalButtonPrimary} disabled={!pendingInteractiveInput.length || loading} onClick={onRun} type="button">
                     <Play size={15} />
-                    Run with buffered input
+                    Run program
                   </button>
                 </div>
               </div>
@@ -359,12 +304,10 @@ export default function TerminalBox({
         </div>
       ) : null}
 
-      {visibleTab === "terminal" ? (
+      {activeTab === "terminal" ? (
         <div className="p-5">
           <div className="rounded-[24px] border border-white/10 bg-[#030405] p-4">
-            <div className="mb-3 text-xs uppercase tracking-[0.22em] text-white/40">
-              Workspace terminal
-            </div>
+            <div className="mb-3 text-xs uppercase tracking-[0.22em] text-white/40">Workspace terminal</div>
             <div className="mb-4 text-sm text-white/55">Current directory {formatWorkspacePath(cwd)}</div>
 
             <div className="scrollbar-thin h-[280px] space-y-4 overflow-y-auto pr-2 font-mono text-sm leading-7">
@@ -389,8 +332,7 @@ export default function TerminalBox({
                 ))
               ) : (
                 <div className="text-white/55">
-                  Run commands like <code>ls</code>, <code>tree</code>, <code>mkdir src</code>,
-                  <code>touch src/main.py</code>, <code>open src/main.py</code>, or <code>help</code>.
+                  Run commands like <code>ls</code>, <code>tree</code>, <code>mkdir src</code>, <code>touch src/main.py</code>, <code>open src/main.py</code>, or <code>help</code>.
                 </div>
               )}
             </div>
@@ -416,7 +358,7 @@ export default function TerminalBox({
         </div>
       ) : null}
 
-      {visibleTab === "ports" ? (
+      {activeTab === "ports" ? (
         <div className="p-5">
           <div className="flex min-h-[340px] flex-col items-start justify-center rounded-[24px] border border-white/10 bg-[#030405] p-6">
             <div className="flex items-center gap-2 text-sm font-semibold text-white">
@@ -424,8 +366,7 @@ export default function TerminalBox({
               Ports
             </div>
             <div className="mt-3 max-w-xl text-sm leading-7 text-white/60">
-              Runtime-exposed ports will appear here once VoidLAB adds forwarded process sessions.
-              For now, browser-preview files still open directly in a new tab from the editor toolbar.
+              Runtime-exposed ports will appear here once VoidLAB adds forwarded process sessions. For now, browser-preview files still open directly in a new tab from the editor toolbar.
             </div>
             <div className="mt-6 rounded-[20px] border border-white/10 bg-white/[0.03] px-4 py-3 text-sm text-white/70">
               Active file: {formatWorkspacePath(activeFilePath)}

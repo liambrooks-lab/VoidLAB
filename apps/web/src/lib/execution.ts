@@ -55,8 +55,8 @@ const buildPlan = (count: number, literalPrompts: string[], fallbackSummary: str
     requiresInput: true,
     summary:
       expectedInputCount && expectedInputCount <= maxAutoPromptCount
-        ? `VoidLAB will collect ${expectedInputCount} stdin ${expectedInputCount === 1 ? "line" : "lines"} inline before execution.`
-        : "VoidLAB detected stdin usage and will buffer your inline terminal entries before execution.",
+        ? `This program appears to need ${expectedInputCount} stdin ${expectedInputCount === 1 ? "line" : "lines"} before it can run.`
+        : "This program appears to read stdin. Enter the required values in the Output panel, then run it.",
   } satisfies InteractiveExecutionPlan;
 };
 
@@ -95,7 +95,7 @@ export const analyzeInteractiveExecution = (languageId: string, source: string):
           expectedInputCount: null,
           prompts: ["stdin[1]"],
           requiresInput: true,
-          summary: "VoidLAB detected stdin streaming. Enter one or more lines inline, then run with the buffered input.",
+          summary: "This program appears to stream stdin. Enter the required values in the Output panel, then run it.",
         };
       }
 

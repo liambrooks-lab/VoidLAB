@@ -19,8 +19,6 @@ import { useCompiler } from "@/hooks/useCompiler";
 import {
   analyzeInteractiveExecution,
   countBufferedStdinLines,
-  hasBufferedStdin,
-  serializeStdinLines,
 } from "@/lib/execution";
 import { useShortcuts } from "@/hooks/useShortcuts";
 import { DEFAULT_LANGUAGE, getLanguageByExtension, getLanguageById, languageGroups } from "@/lib/languages";
@@ -52,12 +50,8 @@ const readBrowserFile = (file: File) =>
   });
 
 type InteractiveSession = {
-  autoSubmit: boolean;
-  bufferedLines: string[];
-  expectedInputCount: number | null;
   helperText: string;
-  promptCursor: number;
-  prompts: string[];
+  promptLabel: string;
 };
 
 const createTranscriptEntry = (
@@ -69,7 +63,13 @@ const createTranscriptEntry = (
   tone,
 });
 
-const formatTranscriptInput = (value: string) => `> ${value.length ? value : "[blank line]"}`;
+const formatTranscriptInput = (value: string) =>
+  value
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .split("\n")
+    .map((line) => `> ${line.length ? line : "[blank line]"}`)
+    .join("\n");
 const stdinCaptureMessage = "Input required for execution. Please enter values below:";
 
 export default function EditorPage() {
@@ -86,8 +86,9 @@ export default function EditorPage() {
   const [pendingInteractiveInput, setPendingInteractiveInput] = useState("");
   const [interactiveSession, setInteractiveSession] = useState<InteractiveSession | null>(null);
   const [transcript, setTranscript] = useState<OutputTranscriptEntry[]>([]);
+  const [consoleTabResetToken, setConsoleTabResetToken] = useState(0);
   const [commandInput, setCommandInput] = useState("");
-  const { error, execution, loading, runCode, cancelExecution } = useCompiler();
+  const { error, execution, loading, runCode, cancelExecution, resetExecutionState } = useCompiler();
   const fileImportRef = useRef<HTMLInputElement>(null);
   const folderImportRef = useRef<HTMLInputElement>(null);
 
@@ -121,6 +122,7 @@ export default function EditorPage() {
 
   const handleSelectFile = (id: string) => {
     if (!workspace) return;
+    clearInteractiveCapture();
 
     const nextWorkspace = {
       ...workspace,
@@ -249,6 +251,7 @@ export default function EditorPage() {
 
   const handleLanguageChange = (nextLanguageId: string) => {
     if (!workspace || !activeFile) return;
+    clearInteractiveCapture();
 
     const selectedLanguage = getLanguageById(nextLanguageId);
     const nextFiles = workspace.files.map((file) =>
@@ -273,6 +276,7 @@ export default function EditorPage() {
 
   const handleCodeChange = (value: string) => {
     if (!workspace || !activeFile) return;
+    clearInteractiveCapture();
 
     persist({
       ...workspace,
@@ -298,33 +302,38 @@ export default function EditorPage() {
     setTranscript((current) => [...current, ...entries]);
   };
 
-  const resetInteractiveInput = () => {
+  const clearInteractiveCapture = () => {
+    setInteractiveSession(null);
+    setPendingInteractiveInput("");
     setStdin("");
+    resetExecutionState();
+  };
+
+  const focusOutputPane = () => {
+    setConsoleTabResetToken((current) => current + 1);
+  };
+
+  const resetInteractiveInput = () => {
     setPendingInteractiveInput("");
 
     if (!interactiveSession) {
-      setStatusMessage("Buffered stdin cleared.");
+      setStatusMessage("Input cleared.");
       return;
     }
 
-    const nextSession = {
-      ...interactiveSession,
-      bufferedLines: [],
-      promptCursor: 0,
-    };
-
-    setInteractiveSession(nextSession);
     setTranscript([
-      createTranscriptEntry("status", "[system] Interactive stdin reset."),
-      createTranscriptEntry("prompt", `${nextSession.prompts[0] ?? "stdin[1]"}:`),
+      createTranscriptEntry("status", `[system] ${stdinCaptureMessage}`),
+      createTranscriptEntry("prompt", `[voidlab] ${interactiveSession.helperText}`),
+      createTranscriptEntry("prompt", `${interactiveSession.promptLabel}:`),
     ]);
-    setStatusMessage("Interactive stdin reset. The next line is ready.");
+    setStatusMessage("Input cleared. Enter stdin in the Output panel, then click Run.");
   };
 
   const runWithStdin = async (
     stdinPayload: string,
     options?: {
       preserveTranscript?: boolean;
+      transcriptInput?: string;
     },
   ) => {
     if (!workspace || !activeFile) return;
@@ -332,20 +341,17 @@ export default function EditorPage() {
     const normalizedPayload = typeof stdinPayload === "string" ? stdinPayload : "";
     const bufferedLineCount = countBufferedStdinLines(normalizedPayload);
 
+    focusOutputPane();
     setInteractiveSession(null);
     setPendingInteractiveInput("");
+    setStdin(normalizedPayload);
     const nextEntries = [
       createTranscriptEntry(
         "status",
         `[system] Running ${currentLanguage.label} on ${formatWorkspacePath(activeFile.path)}.`,
       ),
-      ...(bufferedLineCount
-        ? [
-            createTranscriptEntry(
-              "input",
-              `[stdin] ${bufferedLineCount} buffered ${bufferedLineCount === 1 ? "line" : "lines"} attached.`,
-            ),
-          ]
+      ...(bufferedLineCount && options?.transcriptInput
+        ? [createTranscriptEntry("input", `[stdin]\n${formatTranscriptInput(options.transcriptInput)}`)]
         : []),
     ];
 
@@ -354,6 +360,9 @@ export default function EditorPage() {
     const result = await runCode(currentLanguage, activeFile.content, normalizedPayload);
     const status = result.result?.status.description ?? (result.ok ? "Success" : "Failed");
     const timedOut = Boolean(("tleSuggestion" in result && result.tleSuggestion) || result.result?.timedOut);
+
+    setPendingInteractiveInput("");
+    setStdin("");
 
     if (result.error) {
       if (timedOut) {
@@ -422,74 +431,24 @@ export default function EditorPage() {
 
     const plan = analyzeInteractiveExecution(currentLanguage.id, activeFile.content);
     const nextSession: InteractiveSession = {
-      autoSubmit: plan.autoSubmit,
-      bufferedLines: [],
-      expectedInputCount: plan.expectedInputCount,
-      helperText: `${stdinCaptureMessage} ${plan.summary}`,
-      promptCursor: 0,
-      prompts: plan.prompts.length ? plan.prompts : ["stdin[1]"],
+      helperText: plan.summary,
+      promptLabel: plan.prompts[0] ?? "stdin",
     };
 
+    focusOutputPane();
     setInteractiveSession(nextSession);
     setPendingInteractiveInput("");
     setStdin("");
+    resetExecutionState();
     setTranscript([
       createTranscriptEntry(
         "status",
         `[system] ${stdinCaptureMessage}`,
       ),
       createTranscriptEntry("prompt", `[voidlab] ${plan.summary}`),
-      createTranscriptEntry("prompt", `${nextSession.prompts[0]}:`),
+      createTranscriptEntry("prompt", `${nextSession.promptLabel}:`),
     ]);
     setStatusMessage("Input required before execution. Finish stdin capture in the Output tab.");
-  };
-
-  const handleInteractiveInputSubmit = () => {
-    if (!interactiveSession) return;
-
-    const nextLines = [...interactiveSession.bufferedLines, pendingInteractiveInput];
-    const serializedInput = serializeStdinLines(nextLines);
-    const nextPromptCursor = interactiveSession.promptCursor + 1;
-
-    setPendingInteractiveInput("");
-    setStdin(serializedInput);
-    pushTranscriptEntries(createTranscriptEntry("input", formatTranscriptInput(nextLines[nextLines.length - 1])));
-
-    if (
-      interactiveSession.autoSubmit &&
-      interactiveSession.expectedInputCount !== null &&
-      nextLines.length >= interactiveSession.expectedInputCount
-    ) {
-      void runWithStdin(serializedInput, { preserveTranscript: true });
-      return;
-    }
-
-    const nextPrompt = interactiveSession.prompts[nextPromptCursor] ?? `stdin[${nextPromptCursor + 1}]`;
-
-    setInteractiveSession({
-      ...interactiveSession,
-      bufferedLines: nextLines,
-      promptCursor: nextPromptCursor,
-    });
-    pushTranscriptEntries(createTranscriptEntry("prompt", `${nextPrompt}:`));
-    setStatusMessage(
-      `Buffered ${nextLines.length} stdin ${nextLines.length === 1 ? "line" : "lines"} for the next run.`,
-    );
-  };
-
-  const handleBufferedRun = async () => {
-    if (interactiveSession && pendingInteractiveInput.length) {
-      const nextLines = [...interactiveSession.bufferedLines, pendingInteractiveInput];
-      const serializedInput = serializeStdinLines(nextLines);
-
-      setPendingInteractiveInput("");
-      setStdin(serializedInput);
-      pushTranscriptEntries(createTranscriptEntry("input", formatTranscriptInput(pendingInteractiveInput)));
-      await runWithStdin(serializedInput, { preserveTranscript: true });
-      return;
-    }
-
-    await runWithStdin(stdin, { preserveTranscript: Boolean(interactiveSession) });
   };
 
   const handleRun = async () => {
@@ -517,15 +476,31 @@ export default function EditorPage() {
       return;
     }
 
+    if (interactiveSession) {
+      const interactiveInput = pendingInteractiveInput.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+
+      if (!interactiveInput.length) {
+        setStatusMessage("This program expects input. Enter stdin in the Output panel, then click Run.");
+        return;
+      }
+
+      setStatusMessage(`Running ${currentLanguage.label} with provided stdin...`);
+      await runWithStdin(interactiveInput, {
+        preserveTranscript: true,
+        transcriptInput: interactiveInput,
+      });
+      return;
+    }
+
     const interactivePlan = analyzeInteractiveExecution(currentLanguage.id, activeFile.content);
 
-    if (interactivePlan.requiresInput && !hasBufferedStdin(stdin)) {
+    if (interactivePlan.requiresInput) {
       startInteractiveRun();
       return;
     }
 
     setStatusMessage(`Running ${currentLanguage.label}...`);
-    await runWithStdin(stdin);
+    await runWithStdin("");
   };
 
   const handleDownload = () => {
@@ -658,9 +633,7 @@ export default function EditorPage() {
   if (!profile || !workspace || !activeFile) return null;
 
   const firstName = profile.name.trim().split(/\s+/)[0] || "Builder";
-  const interactivePromptLabel =
-    interactiveSession?.prompts[interactiveSession.promptCursor] ??
-    (interactiveSession ? `stdin[${interactiveSession.promptCursor + 1}]` : "stdin[1]");
+  const interactivePromptLabel = interactiveSession?.promptLabel ?? "stdin";
 
   return (
     <main className="app-shell min-h-screen theme-text">
@@ -824,6 +797,7 @@ export default function EditorPage() {
               </section>
 
               <TerminalBox
+                key={consoleTabResetToken}
                 activeFilePath={activeFile.path}
                 commandHistory={workspace.terminal.history}
                 commandInput={commandInput}
@@ -832,19 +806,15 @@ export default function EditorPage() {
                 execution={execution}
                 interactiveSession={{
                   active: Boolean(interactiveSession),
-                  autoSubmit: interactiveSession?.autoSubmit ?? false,
                   helperText:
                     interactiveSession?.helperText ??
-                    `${stdinCaptureMessage} VoidLAB can buffer stdin here before sending the execution payload.`,
+                    "VoidLAB will request stdin here before sending the execution payload.",
                   promptLabel: interactivePromptLabel,
-                  readyToRun: Boolean(stdin.length || pendingInteractiveInput.length),
                 }}
                 loading={loading}
-                onBufferedRun={() => void handleBufferedRun()}
                 onCommandChange={setCommandInput}
                 onCommandRun={handleCommandRun}
                 onInteractiveInputChange={setPendingInteractiveInput}
-                onInteractiveInputSubmit={handleInteractiveInputSubmit}
                 onResetBufferedInput={resetInteractiveInput}
                 onRun={() => void handleRun()}
                 pendingInteractiveInput={pendingInteractiveInput}
