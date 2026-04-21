@@ -2,8 +2,6 @@
   <img src="apps/web/public/assets/logo-full.svg" alt="VoidLAB logo" width="280" />
 </p>
 
-<h1 align="center">VoidLAB</h1>
-
 <p align="center">
   AI-powered web IDE with multi-language execution, inline stdin handling, GitHub publishing, collaboration tools, and a premium workspace experience.
 </p>
@@ -349,7 +347,7 @@ X_CLIENT_SECRET=replace_me
 </p>
 
 <p align="center">
-  <strong>Crafted by Rudranarayan Jena</strong>
+  <strong>Crafted by MR. Rudranarayan Jena</strong>
 </p>
 
 <p align="center">
@@ -366,6 +364,3 @@ X_CLIENT_SECRET=replace_me
 
 ---
 
-<p align="center">
-  <img src="docs/readme/voidlab-banner.jpg" alt="VoidLAB banner" width="100%" />
-</p>
