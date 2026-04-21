@@ -1,15 +1,18 @@
-# <img src="apps/web/public/assets/logo-icon.svg" alt="VoidLAB prism logo" width="30" valign="middle" /> VoidLAB
+<p align="center">
+  <img src="apps/web/public/assets/logo-full.svg" alt="VoidLAB logo" width="280" />
+</p>
+
+<h1 align="center">VoidLAB</h1>
 
 <p align="center">
-  <strong>VoidLAB</strong><br />
-  An AI Powered coding environment with multi-language support, real-time execution, and Authentication System
+  AI-powered web IDE with multi-language execution, inline stdin handling, GitHub publishing, collaboration tools, and a premium workspace experience.
 </p>
 
 <p align="center">
   <a href="https://void-lab-web.vercel.app/">Live Product</a>
-  •
+  |
   <a href="https://voidlab.onrender.com">Backend API</a>
-  •
+  |
   <a href="https://github.com/liambrooks-lab/VoidLAB">Repository</a>
 </p>
 
@@ -17,58 +20,68 @@
 
 ## Overview
 
-VoidLAB is a full-stack cloud IDE experience designed to feel like a polished product. It combines a premium onboarding flow, personalized workspace, Monaco-powered editor, multi-file editing, keyboard shortcuts, online code execution, direct stdin support for interactive programs, and GitHub publishing from inside the workspace. Built with a monorepo structure and designed for modular Scalability.
+VoidLAB is a modern cloud coding environment designed to feel like a real product, not just a code editor in the browser. It combines a Monaco-powered workspace, multi-file editing, online code execution, inline input handling for interactive programs, collaboration-ready tools, GitHub publishing, and a polished high-end interface.
 
-The project is structured as a monorepo and split into:
+The project is organized as a monorepo with:
 
-- a **Next.js frontend** for the product interface
-- an **Express API** for execution, auth, and GitHub requests
-- shared config packages for cleaner project organization
-
----
-
-## Links
-
-- **Live Product**: [https://void-lab-web.vercel.app/](https://void-lab-web.vercel.app/)
-- **Backend API**: [https://voidlab.onrender.com](https://voidlab.onrender.com)
-- **GitHub Repository**: [https://github.com/liambrooks-lab/VoidLAB](https://github.com/liambrooks-lab/VoidLAB)
+- a `Next.js` frontend for the full product experience
+- an `Express` API for execution, auth, and integration flows
+- shared configuration packages for scalable development
 
 ---
 
-## Highlights
+## Core Highlights
 
-### Premium Product Experience
-- polished landing and onboarding flow
-- profile-based workspace greeting
-- responsive interface across desktop and mobile
-- theme switching support
-- product-grade layout and visual hierarchy
+- Monaco-powered editor with multi-file workspace management
+- support for many runnable and editor-focused languages
+- inline stdin capture for interactive code execution
+- unified output, terminal, and ports console
+- direct GitHub publishing workflow from the workspace
+- collaboration room interface for team workflows
+- built-in AI guide for product walkthroughs and debugging help
+- polished theme system with dark and light workspace modes
+- responsive layout tuned for desktop and mobile
 
-### Editor Experience
-- Monaco-powered code editor
-- multi-file project workspace
-- file explorer and editor tabs
-- export current file
-- persistent local workspace state
-- built-in user manual inside the editor
+---
 
-### Productivity Features
-- `Ctrl/Cmd + Enter` to run code
-- `Ctrl/Cmd + S` to save workspace locally
-- `Ctrl/Cmd + Shift + N` to create a new file
-- `Esc` to close mobile panels
-- separate `Input (stdin)` area for interactive programs
+## Demo Gallery
 
-### Authentication and GitHub
-- direct "Enter VoidLAB" login without leaving the app
-- optional Google, GitHub, and X login
-- GitHub connect plus real push-to-repository support
-- visible repository URL, branch, and visibility fields in the GitHub workspace
+### 1. Personalized workspace home
 
-### Language Support
-VoidLAB supports many languages and formats for editing, and a broad set of runnable languages through the execution engine.
+![VoidLAB personalized workspace](docs/readme/demo-workspace-home.png)
+
+The main workspace gives users a premium first impression with a personalized greeting, feature hub, language card, file explorer, active code editor, and one-click run workflow.
+
+### 2. Execution and command workflow
+
+![VoidLAB execution workflow](docs/readme/demo-terminal-legacy.png)
+
+This view shows the execution area, command workflow, workspace shortcuts, and output-focused development flow that powers the coding experience inside VoidLAB.
+
+### 3. Collaboration rooms
+
+![VoidLAB collaboration rooms](docs/readme/demo-collaboration.png)
+
+VoidLAB includes a dedicated collaboration interface for creating rooms, inviting teammates, syncing shared workspace state, and preparing live teamwork features.
+
+### 4. GitHub publishing
+
+![VoidLAB GitHub publishing](docs/readme/demo-github-publishing.png)
+
+The GitHub publishing page lets users connect GitHub, review the active file, choose a repository target, and prepare code for direct publishing from inside the product.
+
+### 5. Built-in AI guide
+
+![VoidLAB AI guide](docs/readme/demo-ai-guide.png)
+
+The AI guide helps users with input-output handling, workspace structure, debugging direction, and onboarding support without leaving the platform.
+
+---
+
+## Language Support
 
 Runnable language examples:
+
 - JavaScript
 - TypeScript
 - Python
@@ -86,6 +99,7 @@ Runnable language examples:
 - C#
 
 Editor-oriented formats include:
+
 - HTML
 - CSS
 - JSON
@@ -100,6 +114,7 @@ Editor-oriented formats include:
 ## Tech Stack
 
 ### Frontend
+
 - Next.js
 - React
 - TypeScript
@@ -108,18 +123,21 @@ Editor-oriented formats include:
 - Lucide Icons
 
 ### Backend
+
 - Node.js
 - Express
 - TypeScript
 - Axios
 - PostgreSQL
 
-### Platform and Deployment
+### Platform and deployment
+
 - Vercel for frontend hosting
 - Render for backend hosting
 - Judge0 CE for cloud code execution
 
-### Monorepo Tooling
+### Monorepo tooling
+
 - npm workspaces
 - Turborepo
 - shared TypeScript configs
@@ -150,10 +168,11 @@ VoidLAB/
 |     |  `- lib/
 |     |- package.json
 |     `- tsconfig.json
+|- docs/
+|  `- readme/
 |- packages/
 |  |- config/
 |  `- tsconfig/
-|- .github/
 |- docker-compose.yml
 |- package.json
 |- package-lock.json
@@ -161,47 +180,49 @@ VoidLAB/
 `- README.md
 ```
 
+---
+
 ## Architecture
 
-### Frontend
-The frontend is responsible for:
-- onboarding and direct entry
-- optional OAuth starts
-- workspace rendering
-- theme selection
-- file management
-- editor interactions
-- terminal and output presentation
+### Frontend responsibilities
+
+- onboarding and direct entry experience
+- profile and workspace personalization
+- file management and editor interactions
+- console, output, and terminal presentation
 - GitHub publishing UI
-- API communication with the backend
+- collaboration and AI tool pages
+- communication with the backend API
 
-### Backend
-The backend is responsible for:
-- exposing execution endpoints
-- forwarding execution requests to Judge0 CE
-- handling auth and user sessions
-- storing users and provider tokens
-- returning compiler and runtime output to the frontend
-- handling GitHub repository creation and file push
+### Backend responsibilities
 
-### Execution Flow
-1. User opens VoidLAB
-2. User enters directly or signs in with a provider
-3. User enters the editor workspace
-4. Code and stdin are sent to the backend
-5. Backend forwards the request to Judge0 CE
-6. Output is returned and shown in the terminal panel
+- execution endpoints
+- Judge0 submission and polling flow
+- auth and session support
+- database-backed user handling
+- runtime and compiler output normalization
+- GitHub repository and push flows
+
+### Execution flow
+
+1. User opens VoidLAB.
+2. User writes code or imports files into the workspace.
+3. User clicks `Run`.
+4. If the program expects input, VoidLAB asks for stdin inline in the output area.
+5. The backend forwards the execution payload to Judge0 CE.
+6. VoidLAB returns normalized output, errors, and status details back to the workspace.
 
 ---
 
 ## Local Setup
 
 ### Prerequisites
+
 - Node.js 18+
 - npm 10+
 - PostgreSQL 15+ or Docker
 
-### Install
+### Install dependencies
 
 ```bash
 npm install
@@ -214,6 +235,7 @@ docker-compose up -d postgres
 ```
 
 ### Backend environment
+
 Create `apps/api/.env`:
 
 ```env
@@ -236,26 +258,28 @@ X_CLIENT_SECRET=replace_me
 ```
 
 ### Frontend environment
+
 Create `apps/web/.env.local`:
 
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:5000
 ```
 
-### Run Backend
+### Run backend
 
 ```bash
 npm run build -w api
 npm run start -w api
 ```
 
-### Run Frontend
+### Run frontend
 
 ```bash
 npm run dev -w web
 ```
 
 ### Local URLs
+
 - Frontend: `http://localhost:3000`
 - Backend: `http://localhost:5000`
 
@@ -264,11 +288,13 @@ npm run dev -w web
 ## Build Commands
 
 ### Build API
+
 ```bash
 npm run build -w api
 ```
 
-### Build Web
+### Build web
+
 ```bash
 npm run build -w web
 ```
@@ -277,20 +303,24 @@ npm run build -w web
 
 ## Deployment
 
-### Frontend Deployment
-- hosted on **Vercel**
+### Frontend deployment
+
+- hosted on `Vercel`
 - root directory: `apps/web`
 
-### Backend Deployment
-- hosted on **Render**
+### Backend deployment
+
+- hosted on `Render`
 - uses the Express API from `apps/api`
 
-### Required Frontend Production Variable
+### Required frontend production variable
+
 ```env
 NEXT_PUBLIC_API_URL=https://voidlab.onrender.com
 ```
 
-### Required Backend Production Variables
+### Required backend production variables
+
 ```env
 PORT=5000
 NODE_ENV=production
@@ -312,37 +342,30 @@ X_CLIENT_SECRET=replace_me
 
 ---
 
-## Key Capabilities
+## Author
 
-- polished onboarding and workspace personalization
-- shareable public product URL
-- cloud editor workflow
-- stdin-based execution for interactive programs
-- GitHub repository push support
-- responsive design
-- project tabs and file explorer
-- professional UI suitable for demos and portfolio use
-- clear repo structure for scaling the product further
+<p align="center">
+  <img src="docs/readme/author-rudranarayan-jena.jpg" alt="Rudranarayan Jena" width="180" />
+</p>
 
----
+<p align="center">
+  <strong>Crafted by Rudranarayan Jena</strong>
+</p>
 
-## Current Scope
+<p align="center">
+  Product Builder, Full-stack Developer, AI Enthusiast, and the creator behind VoidLAB.
+</p>
 
-VoidLAB is built as a strong production-style MVP with:
-- multi-language editing
-- broad execution support
-- a modern UI
-- monorepo architecture
-- real auth options
-- GitHub publish flow
-- live deployment links
+<p align="center">
+  Focused on building polished developer products, real-world web applications, and modern AI-assisted workflows.
+</p>
+
+<p align="center">
+  <a href="https://github.com/liambrooks-lab">GitHub: @liambrooks-lab</a>
+</p>
 
 ---
 
-### 👨‍💻 Author
-
-**Rudranarayan Jena** 
-- **GitHub:** [@liambrooks-lab](https://github.com/liambrooks-lab)  
-
-
----
+<p align="center">
+  <img src="docs/readme/voidlab-banner.jpg" alt="VoidLAB banner" width="100%" />
+</p>
