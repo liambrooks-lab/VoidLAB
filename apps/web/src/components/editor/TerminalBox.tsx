@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
+  Clock,
   Globe,
   Play,
   RotateCcw,
@@ -18,7 +19,7 @@ type TerminalTab = "output" | "terminal" | "ports";
 export type OutputTranscriptEntry = {
   id: string;
   text: string;
-  tone: "error" | "input" | "prompt" | "status" | "stdout" | "success";
+  tone: "error" | "input" | "prompt" | "status" | "stdout" | "success" | "timeout";
 };
 
 type InteractiveSessionState = {
@@ -98,19 +99,24 @@ function TranscriptLine({ entry }: { entry: OutputTranscriptEntry }) {
   const toneClass =
     entry.tone === "error"
       ? "text-rose-200"
-      : entry.tone === "input"
-        ? "text-sky-200"
-        : entry.tone === "prompt"
-          ? "text-amber-100"
-          : entry.tone === "success"
-            ? "text-emerald-200"
-            : entry.tone === "stdout"
-              ? "text-zinc-100"
-              : "text-white/70";
+      : entry.tone === "timeout"
+        ? "text-amber-200"
+        : entry.tone === "input"
+          ? "text-sky-200"
+          : entry.tone === "prompt"
+            ? "text-amber-100"
+            : entry.tone === "success"
+              ? "text-emerald-200"
+              : entry.tone === "stdout"
+                ? "text-zinc-100"
+                : "text-white/70";
+
+  const Icon = entry.tone === "timeout" ? Clock : null;
 
   return (
-    <div className={`whitespace-pre-wrap break-words font-mono text-sm leading-7 ${toneClass}`}>
-      {entry.text}
+    <div className={`flex items-start gap-2 whitespace-pre-wrap break-words font-mono text-sm leading-7 ${toneClass}`}>
+      {Icon && <Icon className="mt-1 shrink-0 opacity-80" size={13} />}
+      <span>{entry.text}</span>
     </div>
   );
 }
@@ -137,10 +143,31 @@ export default function TerminalBox({
 }: TerminalBoxProps) {
   const [activeTab, setActiveTab] = useState<TerminalTab>("output");
   const bufferedLines = useMemo(() => countBufferedStdinLines(stdin), [stdin]);
+  const transcriptEndRef = useRef<HTMLDivElement>(null);
+  const stdinInputRef = useRef<HTMLInputElement>(null);
+  const timedOut = execution?.timedOut || error.includes("timed out");
+
   const latestStatus =
-    execution?.status.description ?? (interactiveSession.active ? "Awaiting stdin" : loading ? "Running" : "Idle");
+    execution?.status.description ?? (interactiveSession.active ? "Input required" : loading ? "Running" : "Idle");
   const visibleTab: TerminalTab =
     loading || Boolean(error) || Boolean(execution) || interactiveSession.active ? "output" : activeTab;
+
+  // Auto-scroll transcript to bottom whenever it updates
+  useEffect(() => {
+    transcriptEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [transcript]);
+
+  // Auto-focus the stdin input whenever an interactive session starts
+  useEffect(() => {
+    if (interactiveSession.active) {
+      // Small timeout lets React flush the DOM before focusing
+      const timer = setTimeout(() => stdinInputRef.current?.focus(), 80);
+      return () => clearTimeout(timer);
+    }
+  }, [interactiveSession.active]);
+
+  /** Whether we should block any "run" CTA during stdin collection */
+  const isBlocked = loading || interactiveSession.active;
 
   return (
     <section className="overflow-hidden rounded-[28px] border border-white/10 bg-black shadow-[0_22px_80px_rgba(0,0,0,0.58)]">
@@ -172,9 +199,15 @@ export default function TerminalBox({
               </button>
             ))}
           </div>
-          <button className={terminalButtonPrimary} disabled={loading} onClick={onRun} type="button">
+          <button
+            className={terminalButtonPrimary}
+            disabled={isBlocked}
+            onClick={onRun}
+            title={interactiveSession.active ? "Finish entering stdin before running" : undefined}
+            type="button"
+          >
             <Play size={15} />
-            {loading ? "Running" : "Run active file"}
+            {loading ? "Running" : interactiveSession.active ? "Awaiting stdin" : "Run active file"}
           </button>
         </div>
       </div>
@@ -203,7 +236,11 @@ export default function TerminalBox({
 
             <div className="scrollbar-thin h-[240px] space-y-3 overflow-y-auto pr-2">
               {transcript.length ? (
-                transcript.map((entry) => <TranscriptLine entry={entry} key={entry.id} />)
+                <>
+                  {transcript.map((entry) => <TranscriptLine entry={entry} key={entry.id} />)}
+                  {/* sentinel for auto-scroll */}
+                  <div ref={transcriptEndRef} />
+                </>
               ) : (
                 <div className="font-mono text-sm leading-7 text-white/55">
                   [system] Run the active file and VoidLAB will stream status, stdin prompts, stdout,
@@ -214,14 +251,22 @@ export default function TerminalBox({
 
             {interactiveSession.active ? (
               <div className="mt-4 rounded-[20px] border border-sky-400/20 bg-sky-400/[0.05] p-4">
-                <div className="text-xs uppercase tracking-[0.22em] text-sky-200">
-                  {interactiveSession.promptLabel}
+                <div className="flex items-center gap-2 text-xs uppercase tracking-[0.22em] text-sky-200">
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-300" />
+                  </span>
+                  VoidLAB system prompt
                 </div>
                 <div className="mt-2 text-sm leading-6 text-zinc-200">
                   {interactiveSession.helperText}
                 </div>
+                <div className="mt-3 rounded-2xl border border-white/10 bg-black/40 px-3 py-2 font-mono text-sm text-amber-100">
+                  {interactiveSession.promptLabel}:
+                </div>
                 <div className="mt-4 flex flex-col gap-3 lg:flex-row">
                   <input
+                    autoComplete="off"
                     className="flex-1 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 font-mono text-sm text-white outline-none transition placeholder:text-white/30 focus:border-sky-300"
                     onChange={(event) => onInteractiveInputChange(event.target.value)}
                     onKeyDown={(event) => {
@@ -230,13 +275,14 @@ export default function TerminalBox({
                         onInteractiveInputSubmit();
                       }
                     }}
-                    placeholder="Type the next stdin line and press Enter"
+                    placeholder="Type the next stdin value and press Enter"
+                    ref={stdinInputRef}
                     value={pendingInteractiveInput}
                   />
                   <div className="flex flex-wrap gap-3">
                     <button className={terminalButtonSecondary} onClick={onInteractiveInputSubmit} type="button">
                       <ArrowRight size={15} />
-                      Send line
+                      Add stdin line
                     </button>
                     {!interactiveSession.autoSubmit || interactiveSession.readyToRun ? (
                       <button className={terminalButtonPrimary} onClick={onBufferedRun} type="button">
@@ -274,10 +320,14 @@ export default function TerminalBox({
 
           <div className="mt-4 space-y-3">
             {error ? (
-              <div className="rounded-[22px] border border-rose-500/30 bg-rose-500/[0.06] p-4 text-rose-100">
+              <div className={`rounded-[22px] border p-4 ${
+                timedOut
+                  ? "border-amber-500/30 bg-amber-500/[0.06] text-amber-100"
+                  : "border-rose-500/30 bg-rose-500/[0.06] text-rose-100"
+              }`}>
                 <div className="mb-3 flex items-center gap-2 text-sm font-semibold">
-                  <AlertTriangle size={16} />
-                  Execution gateway error
+                  {timedOut ? <Clock size={16} /> : <AlertTriangle size={16} />}
+                  {timedOut ? "Execution timed out" : "Execution gateway error"}
                 </div>
                 <pre className="whitespace-pre-wrap break-words font-mono text-sm leading-7">{error}</pre>
               </div>

@@ -19,6 +19,7 @@ import { useCompiler } from "@/hooks/useCompiler";
 import {
   analyzeInteractiveExecution,
   countBufferedStdinLines,
+  hasBufferedStdin,
   serializeStdinLines,
 } from "@/lib/execution";
 import { useShortcuts } from "@/hooks/useShortcuts";
@@ -69,6 +70,7 @@ const createTranscriptEntry = (
 });
 
 const formatTranscriptInput = (value: string) => `> ${value.length ? value : "[blank line]"}`;
+const stdinCaptureMessage = "Input required for execution. Please enter values below:";
 
 export default function EditorPage() {
   const router = useRouter();
@@ -85,7 +87,7 @@ export default function EditorPage() {
   const [interactiveSession, setInteractiveSession] = useState<InteractiveSession | null>(null);
   const [transcript, setTranscript] = useState<OutputTranscriptEntry[]>([]);
   const [commandInput, setCommandInput] = useState("");
-  const { error, execution, loading, runCode } = useCompiler();
+  const { error, execution, loading, runCode, cancelExecution } = useCompiler();
   const fileImportRef = useRef<HTMLInputElement>(null);
   const folderImportRef = useRef<HTMLInputElement>(null);
 
@@ -93,6 +95,9 @@ export default function EditorPage() {
     folderImportRef.current?.setAttribute("webkitdirectory", "");
     folderImportRef.current?.setAttribute("directory", "");
   }, []);
+
+  // Cancel any in-flight execution when the page unmounts
+  useEffect(() => () => { cancelExecution(); }, [cancelExecution]);
 
   useEffect(() => {
     if (!isReady) return;
@@ -113,43 +118,6 @@ export default function EditorPage() {
   const [draftLanguage, setDraftLanguage] = useState(
     workspace?.files.find((file) => file.id === workspace.activeFileId)?.languageId ?? DEFAULT_LANGUAGE.id,
   );
-
-  const codeLooksInputDriven = (languageId: string, code: string) => {
-    const normalized = code.toLowerCase();
-
-    switch (languageId) {
-      case "cpp":
-      case "c":
-        return /cin\s*>>|scanf\s*\(|getline\s*\(/i.test(code);
-      case "python":
-        return /\binput\s*\(/i.test(code);
-      case "java":
-        return /scanner\s+\w+|nextline\s*\(|nextint\s*\(|bufferedreader/i.test(code);
-      case "javascript":
-      case "typescript":
-        return /readline|process\.stdin|prompt\s*\(/i.test(code);
-      case "csharp":
-        return /console\.readline\s*\(/i.test(code);
-      case "go":
-        return /fmt\.scan|fmt\.scanln|bufio\.newscanner/i.test(code);
-      case "rust":
-        return /stdin\(\)|read_line\s*\(/i.test(code);
-      case "php":
-        return /readline\s*\(|fgets\s*\(stdin/i.test(normalized);
-      case "ruby":
-        return /gets\b|readline\b/i.test(code);
-      case "swift":
-        return /readline\s*\(/i.test(code);
-      case "kotlin":
-        return /readln\s*\(|readline\s*\(/i.test(code);
-      case "bash":
-        return /\bread\s+[-a-z ]*\w+/i.test(code);
-      case "lua":
-        return /io\.read\s*\(/i.test(code);
-      default:
-        return false;
-    }
-  };
 
   const handleSelectFile = (id: string) => {
     if (!workspace) return;
@@ -385,9 +353,19 @@ export default function EditorPage() {
 
     const result = await runCode(currentLanguage, activeFile.content, normalizedPayload);
     const status = result.result?.status.description ?? (result.ok ? "Success" : "Failed");
+    const timedOut = Boolean(("tleSuggestion" in result && result.tleSuggestion) || result.result?.timedOut);
 
     if (result.error) {
-      pushTranscriptEntries(createTranscriptEntry("error", `[gateway] ${result.error}`));
+      if (timedOut) {
+        pushTranscriptEntries(
+          createTranscriptEntry(
+            "timeout",
+            `[timeout] ${result.error}`,
+          ),
+        );
+      } else {
+        pushTranscriptEntries(createTranscriptEntry("error", `[gateway] ${result.error}`));
+      }
     }
 
     if (result.result?.compileOutput) {
@@ -403,22 +381,32 @@ export default function EditorPage() {
     }
 
     if (result.result?.message) {
-      pushTranscriptEntries(createTranscriptEntry("status", result.result.message));
+      if (result.result.message !== result.error) {
+        pushTranscriptEntries(createTranscriptEntry(timedOut ? "timeout" : "status", result.result.message));
+      }
     }
 
-    if (!result.result?.stdout && !result.result?.stderr && !result.result?.compileOutput && !result.result?.message) {
+    if (
+      !timedOut &&
+      !result.result?.stdout &&
+      !result.result?.stderr &&
+      !result.result?.compileOutput &&
+      !result.result?.message
+    ) {
       pushTranscriptEntries(createTranscriptEntry("status", "[system] Program finished without visible output."));
     }
 
     pushTranscriptEntries(
       createTranscriptEntry(
-        result.ok ? "success" : "error",
+        timedOut ? "timeout" : result.ok ? "success" : "error",
         `[result] ${currentLanguage.label} finished with ${status}.`,
       ),
     );
 
     setStatusMessage(
-      result.ok
+      timedOut
+        ? "Execution timed out. Provide stdin values and run again."
+        : result.ok
         ? `${currentLanguage.label} completed successfully.`
         : `${currentLanguage.label} finished with ${status}.`,
     );
@@ -437,7 +425,7 @@ export default function EditorPage() {
       autoSubmit: plan.autoSubmit,
       bufferedLines: [],
       expectedInputCount: plan.expectedInputCount,
-      helperText: plan.summary,
+      helperText: `${stdinCaptureMessage} ${plan.summary}`,
       promptCursor: 0,
       prompts: plan.prompts.length ? plan.prompts : ["stdin[1]"],
     };
@@ -448,12 +436,12 @@ export default function EditorPage() {
     setTranscript([
       createTranscriptEntry(
         "status",
-        `[system] ${currentLanguage.label} looks interactive. VoidLAB will collect stdin inline before execution.`,
+        `[system] ${stdinCaptureMessage}`,
       ),
-      createTranscriptEntry("status", plan.summary),
+      createTranscriptEntry("prompt", `[voidlab] ${plan.summary}`),
       createTranscriptEntry("prompt", `${nextSession.prompts[0]}:`),
     ]);
-    setStatusMessage("Awaiting stdin inside the Output tab.");
+    setStatusMessage("Input required before execution. Finish stdin capture in the Output tab.");
   };
 
   const handleInteractiveInputSubmit = () => {
@@ -530,20 +518,13 @@ export default function EditorPage() {
     }
 
     const interactivePlan = analyzeInteractiveExecution(currentLanguage.id, activeFile.content);
-    const runningWithEmptyStdin =
-      (interactivePlan.requiresInput || codeLooksInputDriven(currentLanguage.id, activeFile.content)) &&
-      !stdin.length;
 
-    if (interactivePlan.requiresInput && !stdin.length) {
+    if (interactivePlan.requiresInput && !hasBufferedStdin(stdin)) {
       startInteractiveRun();
       return;
     }
 
-    setStatusMessage(
-      runningWithEmptyStdin
-        ? `Running ${currentLanguage.label} with empty stdin (EOF will be sent).`
-        : `Running ${currentLanguage.label}...`,
-    );
+    setStatusMessage(`Running ${currentLanguage.label}...`);
     await runWithStdin(stdin);
   };
 
@@ -787,7 +768,7 @@ export default function EditorPage() {
                       Boilerplate
                     </Button>
                     <Button
-                      disabled={loading || (!currentLanguage.runnable && !currentLanguage.previewable)}
+                      disabled={loading || (!currentLanguage.runnable && !currentLanguage.previewable) || Boolean(interactiveSession)}
                       onClick={() => void handleRun()}
                       type="button"
                     >
@@ -854,7 +835,7 @@ export default function EditorPage() {
                   autoSubmit: interactiveSession?.autoSubmit ?? false,
                   helperText:
                     interactiveSession?.helperText ??
-                    "VoidLAB can buffer stdin here before sending the execution payload.",
+                    `${stdinCaptureMessage} VoidLAB can buffer stdin here before sending the execution payload.`,
                   promptLabel: interactivePromptLabel,
                   readyToRun: Boolean(stdin.length || pendingInteractiveInput.length),
                 }}

@@ -64,7 +64,13 @@ export const analyzeInteractiveExecution = (languageId: string, source: string):
   switch (languageId) {
     case "python": {
       const prompts = extractLiteralPrompts(source, /\binput\s*\(\s*(['"`])([\s\S]*?)\1/g);
-      return buildPlan(countMatches(source, /\binput\s*\(/g), prompts, "Python execution is ready.");
+      return buildPlan(
+        countMatches(source, /\binput\s*\(/g) +
+          countMatches(source, /\bsys\.stdin\.readline\s*\(/g) +
+          countMatches(source, /\bsys\.stdin\.read\s*\(/g),
+        prompts,
+        "Python execution is ready.",
+      );
     }
     case "javascript":
     case "typescript": {
@@ -83,7 +89,7 @@ export const analyzeInteractiveExecution = (languageId: string, source: string):
         return buildPlan(count, [...promptCalls, ...questionCalls], "JavaScript execution is ready.");
       }
 
-      if (/readline|process\.stdin/i.test(source)) {
+      if (/readline(?:\/promises)?|createInterface\s*\(|process\.stdin/i.test(source)) {
         return {
           autoSubmit: false,
           expectedInputCount: null,
@@ -98,7 +104,10 @@ export const analyzeInteractiveExecution = (languageId: string, source: string):
     case "cpp":
     case "c":
       return buildPlan(
-        countMatches(source, /\bcin\s*>>/g) + countMatches(source, /\bscanf\s*\(/g) + countMatches(source, /\bgetline\s*\(/g),
+        countMatches(source, /\bcin\s*>>/g) +
+          countMatches(source, /\bscanf(?:_s)?\s*\(/g) +
+          countMatches(source, /\bgetline\s*\(/g) +
+          countMatches(source, /\bfgets\s*\(/g),
         [],
         "C/C++ execution is ready.",
       );
@@ -172,3 +181,5 @@ export const countBufferedStdinLines = (stdin: string) => {
 
   return lines.length;
 };
+
+export const hasBufferedStdin = (stdin: string) => countBufferedStdinLines(stdin) > 0;

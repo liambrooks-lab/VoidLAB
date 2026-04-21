@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { apiBaseUrl } from "@/lib/api";
 import { LanguageOption } from "@/lib/languages";
 
@@ -18,19 +18,33 @@ export type ExecutionDetails = {
   stderr: string;
   stdout: string;
   time: string | null;
+  timedOut: boolean;
   token: string | null;
 };
 
+const STATUS_TLE = 13;
+const timeoutHintMessage = "Execution timed out. Did your program expect input that wasn't provided?";
 const delay = (value: number) => new Promise((resolve) => setTimeout(resolve, value));
-const pollDelayMs = 1200;
-const maxAttempts = 120;
+const pollDelayMs = 1000;
+const maxAttempts = 18;
+
+const isTleResult = (execution: ExecutionDetails) =>
+  execution.timedOut ||
+  execution.status.id === STATUS_TLE ||
+  /time limit exceeded|timed out/i.test(execution.status.description) ||
+  /time limit exceeded|timed out/i.test(execution.message);
 
 export const useCompiler = () => {
   const [execution, setExecution] = useState<ExecutionDetails | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const abortRef = useRef<AbortController | null>(null);
 
-  const runCode = async (language: LanguageOption, code: string, stdin = "") => {
+  const runCode = useCallback(async (language: LanguageOption, code: string, stdin = "") => {
+    abortRef.current?.abort();
+    abortRef.current = new AbortController();
+    const { signal } = abortRef.current;
+
     setLoading(true);
     setError("");
     setExecution(null);
@@ -41,6 +55,7 @@ export const useCompiler = () => {
       const createResponse = await fetch(`${apiBaseUrl}/api/execute`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal,
         body: JSON.stringify({
           code,
           languageId: language.judge0Id,
@@ -57,7 +72,13 @@ export const useCompiler = () => {
       }
 
       for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
-        const statusResponse = await fetch(`${apiBaseUrl}/api/execute/${createData.token}`);
+        if (signal.aborted) {
+          return { error: "Execution cancelled.", ok: false as const };
+        }
+
+        const statusResponse = await fetch(`${apiBaseUrl}/api/execute/${createData.token}`, {
+          signal,
+        });
         const statusData = await statusResponse.json();
 
         if (!statusResponse.ok) {
@@ -70,6 +91,17 @@ export const useCompiler = () => {
         setExecution(nextExecution);
 
         if (!nextExecution.processing) {
+          if (isTleResult(nextExecution)) {
+            const tleError = nextExecution.message || timeoutHintMessage;
+            setError(tleError);
+            return {
+              ok: false as const,
+              result: nextExecution,
+              tleSuggestion: true,
+              error: tleError,
+            };
+          }
+
           return {
             ok: Boolean(nextExecution.status?.successful),
             result: nextExecution,
@@ -79,18 +111,25 @@ export const useCompiler = () => {
         await delay(pollDelayMs);
       }
 
-      const nextError =
-        "Execution is still running longer than expected. Complex programs now get more time, but this one still exceeded the current waiting window.";
+      const nextError = "Execution monitoring expired before Judge0 returned a final state.";
       setError(nextError);
       return { error: nextError, ok: false as const };
-    } catch {
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") {
+        return { error: "Execution cancelled.", ok: false as const };
+      }
+
       const nextError = "VoidLAB could not reach the execution service.";
       setError(nextError);
       return { error: nextError, ok: false as const };
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  return { error, execution, loading, runCode };
+  const cancelExecution = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  return { cancelExecution, error, execution, loading, runCode };
 };

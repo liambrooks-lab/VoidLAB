@@ -4,10 +4,12 @@ import { Request, Response } from "express";
 const judge0ApiUrl = process.env.JUDGE0_API_URL ?? "https://ce.judge0.com";
 const C_PLUS_PLUS_LANGUAGE_ID = 105;
 const JAVASCRIPT_LANGUAGE_ID = 102;
+const STATUS_TIME_LIMIT_EXCEEDED = 13;
 const TYPESCRIPT_LANGUAGE_ID = 101;
-const cpuTimeLimitSeconds = 10;
-const wallTimeLimitSeconds = 30;
+const cpuTimeLimitSeconds = 5;
+const wallTimeLimitSeconds = 10;
 const memoryLimitKb = 786432;
+const timeoutHintMessage = "Execution timed out. Did your program expect input that wasn't provided?";
 
 const encode = (value: string) => Buffer.from(value, "utf8").toString("base64");
 const normalizeStream = (value: string) => value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
@@ -108,12 +110,20 @@ const stringifyErrorPayload = (value: unknown) => {
   }
 };
 
+const isTimeoutExecution = (statusId: number, statusDescription: string, message: string) =>
+  statusId === STATUS_TIME_LIMIT_EXCEEDED ||
+  /time limit exceeded|timed out/i.test(statusDescription) ||
+  /time limit exceeded|timed out/i.test(message);
+
 const mapExecution = (data: any) => {
   const stdout = decode(data.stdout);
   const stderr = decode(data.stderr);
   const compileOutput = decode(data.compile_output);
-  const message = decode(data.message);
   const statusId = Number(data.status?.id ?? 0);
+  const statusDescription = data.status?.description ?? "Unknown";
+  const runtimeMessage = decode(data.message);
+  const timedOut = isTimeoutExecution(statusId, statusDescription, runtimeMessage);
+  const message = timedOut && !runtimeMessage.length ? timeoutHintMessage : runtimeMessage;
   const joinedOutput = joinOutputSections([
     { content: stdout, label: "[stdout]" },
     { content: stderr, label: "[stderr]" },
@@ -130,13 +140,14 @@ const mapExecution = (data: any) => {
     output: joinedOutput || "Code executed with no output.",
     processing: !isFinalStatus(statusId),
     status: {
-      description: data.status?.description ?? "Unknown",
+      description: statusDescription,
       id: statusId,
       successful: statusId === 3,
     },
     stderr,
     stdout,
     time: data.time ?? null,
+    timedOut,
     token: data.token ?? null,
   };
 };
@@ -174,7 +185,7 @@ export const executeCode = async (req: Request, res: Response) => {
         },
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
-        timeout: 45000,
+        timeout: 15000,
       },
     );
 
@@ -208,7 +219,7 @@ export const getExecutionStatus = async (req: Request, res: Response) => {
         },
         maxBodyLength: Infinity,
         maxContentLength: Infinity,
-        timeout: 45000,
+        timeout: 15000,
       },
     );
 
