@@ -30,6 +30,39 @@ The project is structured as a monorepo and split into:
 
 ---
 
+## 🧭 What Is VoidLAB?
+
+VoidLAB is a browser-based coding application for developers, learners, and builders who want one premium workspace for writing, importing, running, debugging, and managing code online.
+
+At the product level, VoidLAB acts as:
+
+- an online compiler for multiple languages
+- a browser IDE with Monaco-powered editing
+- a structured execution workspace with inline stdin support
+- a developer tool hub with GitHub, collaboration, profile, and AI guidance features
+
+---
+
+## 🩺 Problem It Solves
+
+Most web-based compilers and lightweight online editors break down in the exact places that matter during real use:
+
+- they feel too basic for serious coding workflows
+- interactive input handling is clunky or unreliable
+- execution output is hard to read
+- publishing and collaboration are completely disconnected from the editor
+- the product looks functional but not premium
+
+VoidLAB is built to solve that by giving users a cleaner end-to-end workflow:
+
+- write or import code
+- run it in one click
+- provide stdin inline when required
+- get accurate output in a structured console
+- continue working with GitHub, collaboration, and AI support inside the same product
+
+---
+
 ## 🔗 Links
 
 - **Live Product**: [https://void-lab-web.vercel.app/](https://void-lab-web.vercel.app/)
@@ -471,9 +504,18 @@ X_CLIENT_SECRET=replace_me
 
 ## 📄 License
 
-This repository does not currently include a root project license file.
+VoidLAB is protected under a custom restricted license.
 
-If you plan to distribute VoidLAB publicly, accept outside contributions, or open-source the project, add a proper `LICENSE` file before release so usage rights are explicit.
+The full license text is available in [LICENSE](LICENSE).
+
+License summary:
+
+- copyright © 2026 Rudranarayan Jena
+- all rights reserved
+- no copying, modification, distribution, hosting, reuse, or derivative work without prior written permission
+- no commercial or non-commercial use is allowed unless explicitly approved by the author
+
+VoidLAB is not released as an open-source project under MIT, Apache, GPL, or any other permissive/public license.
 
 ---
 
