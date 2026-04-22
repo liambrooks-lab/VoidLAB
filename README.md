@@ -543,6 +543,3 @@ VoidLAB is not released as an open-source project under MIT, Apache, GPL, or any
 
 ---
 
-<p align="center">
-  <img src="docs/readme/voidlab-banner.jpg" alt="VoidLAB banner" width="100%" />
-</p>
