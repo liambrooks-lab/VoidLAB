@@ -2,8 +2,10 @@
   <img src="apps/web/public/assets/logo-full.svg" alt="VoidLAB logo" width="280" />
 </p>
 
+<h1 align="center">VoidLAB</h1>
+
 <p align="center">
-  AI-powered web IDE with multi-language execution, inline stdin handling, GitHub publishing, collaboration tools, and a premium workspace experience.
+  A modern AI-powered web IDE built for real code execution, polished developer workflows, and premium product feel.
 </p>
 
 <p align="center">
@@ -16,69 +18,146 @@
 
 ---
 
-## Overview
+## ✨ Overview
 
-VoidLAB is a modern cloud coding environment designed to feel like a real product, not just a code editor in the browser. It combines a Monaco-powered workspace, multi-file editing, online code execution, inline input handling for interactive programs, collaboration-ready tools, GitHub publishing, and a polished high-end interface.
+VoidLAB is a full-stack cloud coding environment designed to feel like a real premium product, not just a code editor running in the browser. It combines a Monaco-powered workspace, multi-file editing, online code execution, inline stdin handling for interactive programs, GitHub publishing, collaboration-ready tools, a built-in AI guide, and a polished high-end interface.
 
-The project is organized as a monorepo with:
+The project is structured as a monorepo and split into:
 
-- a `Next.js` frontend for the full product experience
+- a `Next.js` frontend for the complete product interface
 - an `Express` API for execution, auth, and integration flows
-- shared configuration packages for scalable development
+- shared configuration packages for cleaner and more scalable project organization
 
 ---
 
-## Core Highlights
+## 🔗 Links
+
+- **Live Product**: [https://void-lab-web.vercel.app/](https://void-lab-web.vercel.app/)
+- **Backend API**: [https://voidlab.onrender.com](https://voidlab.onrender.com)
+- **GitHub Repository**: [https://github.com/liambrooks-lab/VoidLAB](https://github.com/liambrooks-lab/VoidLAB)
+
+---
+
+## 🚀 Latest Product State
+
+VoidLAB currently ships with:
+
+- a unified console with `Output`, `Terminal`, and `Ports` tabs
+- inline stdin capture for interactive programs instead of a clunky separate flow
+- multi-language execution powered by Judge0 CE
+- dedicated feature pages for `Manual`, `GitHub`, `Collaboration`, `AI Guide`, and `Profile`
+- personalized workspace UI with themes, activity context, and polished controls
+- refreshed product documentation and visual demo assets in this repository
+
+---
+
+## 🌌 Core Highlights
 
 - Monaco-powered editor with multi-file workspace management
 - support for many runnable and editor-focused languages
 - inline stdin capture for interactive code execution
 - unified output, terminal, and ports console
-- direct GitHub publishing workflow from the workspace
+- direct GitHub publishing workflow from inside the workspace
 - collaboration room interface for team workflows
 - built-in AI guide for product walkthroughs and debugging help
-- polished theme system with dark and light workspace modes
+- polished theme system across dark and light workspace modes
 - responsive layout tuned for desktop and mobile
 
 ---
 
-## Demo Gallery
+## 🧩 Product Surface
 
-### 1. Personalized workspace home
+### Workspace experience
 
-![VoidLAB personalized workspace](docs/readme/demo-workspace-home.png)
+- personalized workspace greeting
+- active project shell with editor tabs and file explorer
+- language switching, save, export, boilerplate, and run controls
+- keyboard shortcuts for fast editing flow
 
-The main workspace gives users a premium first impression with a personalized greeting, feature hub, language card, file explorer, active code editor, and one-click run workflow.
+### Execution experience
 
-### 2. Execution and command workflow
+- online code execution through the backend execution gateway
+- inline stdin routing for input-based programs
+- structured stdout, stderr, compile output, and runtime messages
+- execution status, timing, and memory feedback
 
-![VoidLAB execution workflow](docs/readme/demo-terminal-legacy.png)
+### Productivity tools
 
-This view shows the execution area, command workflow, workspace shortcuts, and output-focused development flow that powers the coding experience inside VoidLAB.
-
-### 3. Collaboration rooms
-
-![VoidLAB collaboration rooms](docs/readme/demo-collaboration.png)
-
-VoidLAB includes a dedicated collaboration interface for creating rooms, inviting teammates, syncing shared workspace state, and preparing live teamwork features.
-
-### 4. GitHub publishing
-
-![VoidLAB GitHub publishing](docs/readme/demo-github-publishing.png)
-
-The GitHub publishing page lets users connect GitHub, review the active file, choose a repository target, and prepare code for direct publishing from inside the product.
-
-### 5. Built-in AI guide
-
-![VoidLAB AI guide](docs/readme/demo-ai-guide.png)
-
-The AI guide helps users with input-output handling, workspace structure, debugging direction, and onboarding support without leaving the platform.
+- built-in product manual
+- GitHub publishing interface
+- collaboration rooms
+- AI guide
+- profile management and workspace personalization
 
 ---
 
-## Language Support
+## 🖼️ Demo Gallery
 
-Runnable language examples:
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/readme/demo-workspace-home.png" alt="VoidLAB workspace home" />
+      <br />
+      <strong>1. Personalized workspace home</strong>
+      <br />
+      The main workspace gives users a premium first impression with a personalized greeting, feature hub, language card, file explorer, active code editor, and one-click run workflow.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/readme/demo-terminal-legacy.png" alt="VoidLAB execution and command workflow" />
+      <br />
+      <strong>2. Execution and command workflow</strong>
+      <br />
+      This view highlights the execution area, command workflow, workspace shortcuts, and the output-focused development flow that powers coding inside VoidLAB.
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <img src="docs/readme/demo-collaboration.png" alt="VoidLAB collaboration rooms" />
+      <br />
+      <strong>3. Collaboration rooms</strong>
+      <br />
+      VoidLAB includes a dedicated collaboration interface for creating rooms, inviting teammates, syncing shared workspace state, and preparing live teamwork features.
+    </td>
+    <td width="50%" valign="top">
+      <img src="docs/readme/demo-github-publishing.png" alt="VoidLAB GitHub publishing" />
+      <br />
+      <strong>4. GitHub publishing</strong>
+      <br />
+      The GitHub publishing page lets users connect GitHub, review the active file, choose a repository target, and prepare code for direct publishing from inside the product.
+    </td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center" valign="top">
+      <img src="docs/readme/demo-ai-guide.png" alt="VoidLAB AI guide" />
+      <br />
+      <strong>5. Built-in AI guide</strong>
+      <br />
+      The AI guide helps users with input-output handling, workspace structure, debugging direction, and onboarding support without leaving the platform.
+    </td>
+  </tr>
+</table>
+
+---
+
+## 💡 Why VoidLAB
+
+VoidLAB is built around a simple product promise:
+
+- write code or import it
+- click `Run`
+- get clean, accurate execution feedback
+- handle stdin inline when the program requires input
+- keep the workflow inside one polished browser workspace
+
+That simplicity drives the architecture, UI design, and execution flow across the entire product.
+
+---
+
+## 🌍 Language Support
+
+VoidLAB supports many languages and formats for editing, and a broad set of runnable languages through the execution engine.
+
+### Runnable language examples
 
 - JavaScript
 - TypeScript
@@ -96,7 +175,7 @@ Runnable language examples:
 - Lua
 - C#
 
-Editor-oriented formats include:
+### Editor-oriented formats
 
 - HTML
 - CSS
@@ -109,11 +188,11 @@ Editor-oriented formats include:
 
 ---
 
-## Tech Stack
+## 🛠️ Tech Stack
 
 ### Frontend
 
-- Next.js
+- Next.js `16.2.4`
 - React
 - TypeScript
 - Tailwind CSS
@@ -142,7 +221,7 @@ Editor-oriented formats include:
 
 ---
 
-## Monorepo Structure
+## 🧱 Monorepo Structure
 
 ```text
 VoidLAB/
@@ -180,7 +259,7 @@ VoidLAB/
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
 ### Frontend responsibilities
 
@@ -194,12 +273,12 @@ VoidLAB/
 
 ### Backend responsibilities
 
-- execution endpoints
-- Judge0 submission and polling flow
-- auth and session support
-- database-backed user handling
-- runtime and compiler output normalization
-- GitHub repository and push flows
+- exposing execution endpoints
+- forwarding execution requests to Judge0 CE
+- handling auth and user sessions
+- storing users and provider tokens
+- returning normalized compiler and runtime output to the frontend
+- handling GitHub repository creation and file push flows
 
 ### Execution flow
 
@@ -212,7 +291,57 @@ VoidLAB/
 
 ---
 
-## Local Setup
+## ✅ Validation Snapshot
+
+The latest verified repo state includes:
+
+- `apps/web` lint passing
+- `apps/web` typecheck passing
+- `apps/web` production build passing
+- `apps/api` build passing
+
+---
+
+## 🔐 Authentication and GitHub
+
+- direct entry flow without leaving the app
+- optional Google, GitHub, and X login support
+- GitHub connect plus repository publishing support
+- visible repository target and publishing controls inside the workspace
+
+---
+
+## 📦 Key Capabilities
+
+- polished onboarding and workspace personalization
+- shareable public product URL
+- cloud editor workflow
+- inline stdin-based execution for interactive programs
+- GitHub repository publishing support
+- responsive design
+- project tabs and file explorer
+- dedicated tool pages for manual, profile, AI guide, GitHub, and collaboration
+- professional UI suitable for demos, portfolio presentation, and product showcases
+- clean monorepo structure for scaling the platform further
+
+---
+
+## 🎯 Current Scope
+
+VoidLAB is built as a strong production-style MVP with:
+
+- multi-language editing
+- broad execution support
+- a modern UI
+- monorepo architecture
+- real auth options
+- GitHub publish flow
+- live deployment links
+- product-level workspace tooling
+
+---
+
+## 🧪 Local Setup
 
 ### Prerequisites
 
@@ -283,7 +412,7 @@ npm run dev -w web
 
 ---
 
-## Build Commands
+## 🏁 Build Commands
 
 ### Build API
 
@@ -299,7 +428,7 @@ npm run build -w web
 
 ---
 
-## Deployment
+## 🌐 Deployment
 
 ### Frontend deployment
 
@@ -340,7 +469,15 @@ X_CLIENT_SECRET=replace_me
 
 ---
 
-## Author
+## 📄 License
+
+This repository does not currently include a root project license file.
+
+If you plan to distribute VoidLAB publicly, accept outside contributions, or open-source the project, add a proper `LICENSE` file before release so usage rights are explicit.
+
+---
+
+## 👨‍💻 Author
 
 <p align="center">
   <img src="docs/readme/author-rudranarayan-jena.jpg" alt="Rudranarayan Jena" width="180" />
@@ -351,11 +488,11 @@ X_CLIENT_SECRET=replace_me
 </p>
 
 <p align="center">
-  Product Builder, Full-stack Developer, AI Enthusiast, and the creator behind VoidLAB.
+  Product Builder • Full-stack Developer • AI Enthusiast • Creator of VoidLAB
 </p>
 
 <p align="center">
-  Focused on building polished developer products, real-world web applications, and modern AI-assisted workflows.
+  Focused on building polished developer products, real-world web applications, execution systems, and modern AI-assisted workflows.
 </p>
 
 <p align="center">
@@ -364,3 +501,6 @@ X_CLIENT_SECRET=replace_me
 
 ---
 
+<p align="center">
+  <img src="docs/readme/voidlab-banner.jpg" alt="VoidLAB banner" width="100%" />
+</p>
