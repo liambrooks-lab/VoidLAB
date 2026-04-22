@@ -2,8 +2,6 @@
   <img src="apps/web/public/assets/logo-full.svg" alt="VoidLAB logo" width="280" />
 </p>
 
-<h1 align="center">VoidLAB</h1>
-
 <p align="center">
   A modern AI-powered web IDE built for real code execution, polished developer workflows, and premium product feel.
 </p>
